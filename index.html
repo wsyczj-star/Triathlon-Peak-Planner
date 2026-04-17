@@ -1,349 +1,850 @@
-<!DOCTYPE html>
-<html lang="zh-CN">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>铁三备赛与训练管理面板</title>
-    <!-- 引入 Tailwind CSS -->
-    <script src="https://cdn.tailwindcss.com"></script>
-    <!-- 引入 React 和 ReactDOM -->
-    <script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin></script>
-    <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" crossorigin></script>
-    <!-- 引入 Babel 以解析 JSX -->
-    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
-</head>
-<body class="bg-slate-50 text-slate-800">
-    <div id="root"></div>
+import React, { useState, useEffect } from 'react';
+import { 
+  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Line, ComposedChart
+} from 'recharts';
+import { 
+  Trophy, Activity, AlertTriangle, CheckCircle, TrendingUp, Waves, Bike, Footprints, X, Loader2, Zap, Target, Settings, Trash2, Calendar
+} from 'lucide-react';
 
-    <script type="text/babel">
-        const { useState, useEffect } = React;
+// --- 预设数据字典 ---
+const PREDEFINED_RACES = [
+  { name: "IRONMAN 70.3 上海崇明站 (万达体育)", estDate: "2026-05-25" },
+  { name: "Challenge Taiwan 国际铁人三项赛·台东", estDate: "2026-04-26" },
+  { name: "江西德兴铁人三项亚洲杯赛 (中铁协)", estDate: "2026-04-20" },
+  { name: "长三角国际铁人三项赛·上海青浦 (中铁协)", estDate: "2026-05-18" },
+  { name: "威海超级铁人三项系列赛 (中铁协)", estDate: "2026-09-20" },
+  { name: "广州铁人三项赛 (中铁协)", estDate: "2026-10-19" },
+  { name: "无锡铁人三项赛暨中国铁人三项联赛", estDate: "2026-10-26" },
+  { name: "常熟尚湖 STC 铁人三项赛 (STC大铁)", estDate: "2026-06-15" },
+  { name: "安徽广德铁立方(IronCube)超级铁三赛", estDate: "2026-09-20" },
+  { name: "京津冀三夫铁人三项赛·北京金海湖", estDate: "2026-09-20" },
+  { name: "阳朔铁人三项赛 (地方经典赛)", estDate: "2026-10-25" },
+  { name: "其他自定义赛事...", estDate: "" }
+];
 
-        // --- 图标组件 (内联 SVG) ---
-        const IconActivity = () => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"></polyline></svg>;
-        const IconSettings = () => <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>;
-        const IconTrophy = () => <svg xmlns="http://www.w3.org/2000/svg" width="80" height="80" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6"></path><path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18"></path><path d="M4 22h16"></path><path d="M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20.24 7 22"></path><path d="M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20.24 17 22"></path><path d="M18 2H6v7a6 6 0 0 0 12 0V2Z"></path></svg>;
+const AGE_GROUPS = [
+  "U19 (19岁以下)", "20-24", "25-29", "30-34", 
+  "35-39", "40-44", "45-49", "50-54", 
+  "55-59", "60-64", "65-69", "70+ (70岁以上)"
+];
 
-        function App() {
-            // --- 状态管理 ---
-            const [config, setConfig] = useState({
-                clientId: '',
-                clientSecret: '',
-                raceName: '2026 威海铁三 (A级)',
-                raceDate: '2026-09-20',
-                plannedSwim: 180,
-                plannedBike: 360,
-                plannedRun: 240
-            });
-            const [showSettings, setShowSettings] = useState(false);
-            const [authStatus, setAuthStatus] = useState('未连接'); // 未连接, 授权中, 已连接
-            const [activities, setActivities] = useState({ swim: 0, bike: 0, run: 0 }); // 实际完成分钟数
-            const [loading, setLoading] = useState(false);
-            const [errorMsg, setErrorMsg] = useState('');
+const DISTANCES = [
+  "大铁 (226km)", "半程大铁/70.3 (113km)", "奥运标准距离 (51.5km)", "半程标铁/冲刺 (25.75km)"
+];
 
-            // 初始化加载配置
-            useEffect(() => {
-                const savedConfig = localStorage.getItem('strava_planner_config');
-                if (savedConfig) {
-                    setConfig(JSON.parse(savedConfig));
-                } else {
-                    setShowSettings(true); // 首次打开显示设置
-                }
+const MOCK_WEEKLY_TRENDS = [
+  { week: 'W-6', planned: 8, actual: 8.5 },
+  { week: 'W-5', planned: 9, actual: 7.5 },
+  { week: 'W-4', planned: 10, actual: 10 },
+  { week: 'W-3', planned: 11, actual: 9 },
+  { week: 'W-2', planned: 12, actual: 12.5 },
+  { week: 'W-1', planned: 13, actual: 11 },
+];
 
-                // 检查 URL 是否有 Strava 授权返回的 code
-                const urlParams = new URLSearchParams(window.location.search);
-                const code = urlParams.get('code');
+// --- 辅助计算与格式化 ---
+const formatTime = (mins) => {
+  const mNum = Number(mins);
+  if (!mNum) return '0m';
+  const h = Math.floor(mNum / 60);
+  const m = mNum % 60;
+  return h > 0 ? `${h}h ${m}m` : `${m}m`;
+};
+
+const getTrainingPhaseAdvice = (daysLeft) => {
+  if (daysLeft < 0) return { id: "recovery", phase: "赛后恢复期 (Recovery)", color: "bg-zinc-100 text-zinc-700 border-zinc-200", desc: "比赛已结束，恭喜完赛！", focus: "彻底放松，进行轻度交叉训练，排酸恢复，为下一赛段蓄力。" };
+  if (daysLeft <= 7) return { id: "race", phase: "比赛周 (Race Week)", color: "bg-purple-100 text-purple-800 border-purple-200", desc: "状态激活，充足睡眠，准备开赛！", focus: "训练量降至极低（平时20%）。赛前3天安排短时间激活。重点关注饮食碳水储备与装备整理。" };
+  if (daysLeft <= 21) return { id: "taper", phase: "赛前减量期 (Taper Phase)", color: "bg-emerald-100 text-emerald-800 border-emerald-200", desc: "削减容量，消除疲劳，保持强度刺激。", focus: "切忌突击补量！周容量砍半，保留短时间、比赛配速的间歇训练，让身体在比赛日超量恢复。" };
+  if (daysLeft <= 56) return { id: "build", phase: "赛前冲刺强化期 (Peak/Build)", color: "bg-rose-100 text-rose-800 border-rose-200", desc: "训练容量与强度双高，专项能力的试金石。", focus: "每周安排1次“砖块训练(Brick)”适应换项。增加乳酸阈值（Z4）训练比例，拉长周末LSD距离。" };
+  return { id: "base", phase: "基础建设期 (Base Phase)", color: "bg-cyan-100 text-cyan-800 border-cyan-200", desc: "构建强大的有氧引擎与肌肉耐力。", focus: "忘记配速！80%的训练应在低心率（Z2 二区）轻松完成。注重技术改良，夯实有氧基础。" };
+};
+
+const generateWeeklyPlan = (phaseId, goalDistance) => {
+  const isFull = goalDistance.includes('226');
+  const isHalf = goalDistance.includes('113');
+  const mult = isFull ? 2 : (isHalf ? 1.5 : 1);
+  const styles = { rest: "bg-zinc-50 text-zinc-500 border-zinc-200", swim: "bg-cyan-50 text-cyan-700 border-cyan-200", bike: "bg-emerald-50 text-emerald-700 border-emerald-200", run:  "bg-orange-50 text-[#FC4C02] border-orange-200", brick: "bg-purple-50 text-purple-700 border-purple-200", race: "bg-rose-500 text-white border-rose-600" };
+
+  if (phaseId === 'recovery') return [
+      { day: '周一', tag: '🛏️ 彻底休息', style: styles.rest, text: '睡眠与被动恢复，精油按摩。' }, { day: '周二', tag: '🚶 积极恢复', style: styles.rest, text: '散步或超慢骑行 20分，排酸。' },
+      { day: '周三', tag: '🏊 放松游', style: styles.swim, text: '1000m 极慢速打腿恢复。' }, { day: '周四', tag: '🛏️ 休息', style: styles.rest, text: '拉伸与泡沫轴放松。' },
+      { day: '周五', tag: '🏃 慢跑恢复', style: styles.run, text: 'Z1区超慢跑 20分钟。' }, { day: '周六', tag: '🚴 休闲骑', style: styles.bike, text: '不看功率的咖啡休闲骑。' }, { day: '周日', tag: '🛏️ 交叉', style: styles.rest, text: '无压力交叉运动。' }
+  ];
+  if (phaseId === 'race') return [
+      { day: '周一', tag: '🛏️ 彻底休息', style: styles.rest, text: '储备体能，增加碳水比例。' }, { day: '周二', tag: '🏊 赛前水感', style: styles.swim, text: `轻松游 ${isFull?'1500':'800'}m，含少许冲刺。` },
+      { day: '周三', tag: '🚴 踏频唤醒', style: styles.bike, text: `轻松骑 ${Math.round(40*mult)}m，含3组赛道功率。` }, { day: '周四', tag: '🏃 神经激活', style: styles.run, text: `轻松跑 20m，含快步频冲刺。` },
+      { day: '周五', tag: '🛏️ 彻底休息', style: styles.rest, text: '领参赛包，理装备，早睡。' }, { day: '周六', tag: '🔥 赛前一天', style: styles.brick, text: '交车。15分极轻骑+10分慢跑。' }, { day: '周日', tag: '🏆 比赛日', style: styles.race, text: '检验成果！按既定心率稳扎稳打！' }
+  ];
+  if (phaseId === 'taper') return [
+      { day: '周一', tag: '🛏️ 休息/拉伸', style: styles.rest, text: '全天休息，重点放松腿部。' }, { day: '周二', tag: '🏊 强度维持', style: styles.swim, text: `总容量减半。包含赛道配速。` },
+      { day: '周三', tag: '🚴 节奏激活', style: styles.bike, text: `骑行 ${Math.round(1*mult)}h。含短时比赛功率巡航。` }, { day: '周四', tag: '🏃 配速记忆', style: styles.run, text: `跑 ${Math.round(40*mult)}m。含2组目标配速。` },
+      { day: '周五', tag: '🛏️ 休息', style: styles.rest, text: '完全恢复，消除本周疲劳。' }, { day: '周六', tag: '🚴 短途适应', style: styles.bike, text: `周末减量骑行 ${Math.round(1.5*mult)}h。` }, { day: '周日', tag: '🏃 轻松长跑', style: styles.run, text: `周末减量长跑 ${Math.round(50*mult)}m。` }
+  ];
+  if (phaseId === 'build') return [
+      { day: '周一', tag: '🛏️ 休息日', style: styles.rest, text: '彻底休息，消化周末高压疲劳。' }, { day: '周二', tag: '🏊 阈值游泳', style: styles.swim, text: `容量 ${Math.round(2.5*mult)}k。做无氧阈值间歇。` },
+      { day: '周三', tag: '🚴 甜点/间歇', style: styles.bike, text: `骑行 ${Math.round(1.2*mult)}h。安排SweetSpot间歇。` }, { day: '周四', tag: '🏃 节奏跑', style: styles.run, text: `跑步 ${Math.round(50*mult)}m。含目标配速巡航。` },
+      { day: '周五', tag: '🏊 轻松游', style: styles.swim, text: `恢复游 ${Math.round(2*mult)}k。注重划水技术。` }, { day: '周六', tag: '🔥 砖块训练', style: styles.brick, text: `长骑 ${Math.round(2.5*mult)}h后紧接快跑 ${Math.round(20*mult)}m。` }, { day: '周日', tag: '🏃 周末长跑', style: styles.run, text: `LSD 慢跑 ${Math.round(1.5*mult)}h。后半程提速。` }
+  ];
+  return [
+      { day: '周一', tag: '🛏️ 休息/拉伸', style: styles.rest, text: '休息日。可安排瑜伽或核心力量。' }, { day: '周二', tag: '🏊 有氧/技术', style: styles.swim, text: `轻松游 ${Math.round(2*mult)}k。做分解技术动作。` },
+      { day: '周三', tag: '🚴 基础有氧', style: styles.bike, text: `平稳骑行 ${Math.round(1*mult)}h。严格压在 Z2。` }, { day: '周四', tag: '🏃 轻松跑', style: styles.run, text: `Z2 慢跑 ${Math.round(45*mult)}m。关注步频。` },
+      { day: '周五', tag: '🏊 耐力游', style: styles.swim, text: `长游 ${Math.round(2.5*mult)}k。建立长距离耐力。` }, { day: '周六', tag: '🚴 长距离LSD', style: styles.bike, text: `周末长骑 ${Math.round(2.5*mult)}h。纯 Z2 慢骑。` }, { day: '周日', tag: '🏃 长距离LSD', style: styles.run, text: `周末长跑 ${Math.round(1*mult)}h。慢到可自由交谈。` }
+  ];
+};
+
+const analyzeSplits = (pb, goal, goalType, pbDist, goalDist) => {
+  if (goalType === 'finish') {
+      if (pbDist !== goalDist) return `跨距离体验！着重挑战全新的 ${goalDist.split(' ')[0]}。目标以享受赛道、安全完赛为主。重点：1. 适应长距离补给策略；2. 坚决执行舒适心率区间，切忌前半程上头冲刺；3. 倾听身体反馈。`;
+      return `本次以稳健完赛为目标。保持放松的心态，以轻松的有氧配速享受赛道，注意倾听身体的声音，避免伤病。`;
+  }
+  if (goalType === 'cutoff') {
+      if (pbDist !== goalDist) return `跨距离抗压挑战！面临全新的 ${goalDist.split(' ')[0]} 及关门压力。建议重点：1. 熟记官方关门时间节点；2. 训练中增加长距离抗疲劳测试；3. 换项区快速通过，把每一次换项都当成生命线！`;
+      return `压线生存战！面临严格的完赛时间压力。建议重点：1. 熟记各单项绝对关门时间；2. 训练加强基础耐力，提高后半程抗疲劳能力；3. 换项区切忌停留休息，按流水线迅速通过。`;
+  }
+  if (pbDist !== goalDist) return `跨距离成绩挑战！基于你 ${pbDist.split(' ')[0]} 的底子，设定了 ${goalDist.split(' ')[0]} 的进阶成绩目标。请结合长距离配速科学评估，赛时严控体力分配，避免掉速。`;
+
+  const diffs = { swim: Number(pb.swim) - Number(goal.swim), t1: Number(pb.t1) - Number(goal.t1), bike: Number(pb.bike) - Number(goal.bike), t2: Number(pb.t2) - Number(goal.t2), run: Number(pb.run) - Number(goal.run) };
+  const totalDiff = Object.values(diffs).reduce((a,b) => a+b, 0);
+  
+  if (totalDiff <= 0) return `保守/稳健目标（与该距离最好成绩持平或略慢）。重点在于无伤备赛，保持日常训练连贯性，执行稳定的赛场营养补给策略。`;
+
+  let strategy = `要求在此前最好成绩基础上提速 ${totalDiff} 分钟！`;
+  const pcts = { swim: Number(pb.swim) > 0 ? diffs.swim / Number(pb.swim) : 0, bike: Number(pb.bike) > 0 ? diffs.bike / Number(pb.bike) : 0, run: Number(pb.run) > 0 ? diffs.run / Number(pb.run) : 0 };
+  const maxPct = Math.max(pcts.swim, pcts.bike, pcts.run);
+  let focusAreas = [];
+
+  if (diffs.swim > 0 && pcts.swim === maxPct) focusAreas.push("游泳提速要求最高，需针对性增加水感训练及公开水域实战");
+  else if (diffs.bike > 0 && pcts.bike === maxPct) focusAreas.push("自行车是被寄予厚望的突破口，重点强化甜点区(Sweet Spot)巡航能力");
+  else if (diffs.run > 0 && pcts.run === maxPct) focusAreas.push("跑步是本次提速的核心，需加强砖块训练(Brick)以适应疲劳");
+  
+  if ((diffs.t1 + diffs.t2) >= 3) focusAreas.push(`换项区硬挤出了 ${diffs.t1 + diffs.t2} 分钟，这是最容易拿到的免费时间，赛前务必反复演练流程`);
+
+  if (focusAreas.length > 0) strategy += ` 重点突破方向：` + focusAreas.join("；") + "。";
+  return strategy;
+};
+
+export default function App() {
+  // --- 状态管理 ---
+  const [config, setConfig] = useState({
+      clientId: '', clientSecret: '', ageGroup: '30-34', gender: 'M',
+      plannedSwim: 180, plannedBike: 360, plannedRun: 240, plannedSwimDist: 3.5, plannedBikeDist: 100, plannedRunDist: 30,
+      pbDistance: '奥运标准距离 (51.5km)', pbSplits: { swim: 40, t1: 5, bike: 80, t2: 5, run: 55 },
+      goalDistance: '奥运标准距离 (51.5km)', goalType: 'time', goalSplits: { swim: 35, t1: 3, bike: 75, t2: 3, run: 50 },
+      races: [{ id: Date.now(), name: '威海超级铁人三项系列赛 (中铁协)', date: '2026-09-20', distance: '奥运标准距离 (51.5km)', priority: 'A', isCustomMode: false }]
+  });
+  
+  const [activeModal, setActiveModal] = useState(null); 
+  const [authStatus, setAuthStatus] = useState('未连接'); 
+  const [activities, setActivities] = useState({ swimTime: 0, swimDist: 0, bikeTime: 0, bikeDist: 0, runTime: 0, runDist: 0 }); 
+  const [loading, setLoading] = useState(false);
+  const [errorMsg, setErrorMsg] = useState('');
+
+  // 初始化与数据拉取
+  useEffect(() => {
+      const savedConfigStr = localStorage.getItem('strava_planner_config');
+      if (savedConfigStr) {
+          let savedConfig = JSON.parse(savedConfigStr);
+          if (!savedConfig.pbSplits) {
+              savedConfig.pbSplits = { swim: 40, t1: 5, bike: 80, t2: 5, run: 55 };
+              savedConfig.goalSplits = { swim: 35, t1: 3, bike: 75, t2: 3, run: 50 };
+          }
+          setConfig(savedConfig);
+      }
+
+      const urlParams = new URLSearchParams(window.location.search);
+      const code = urlParams.get('code');
+      if (code) { setAuthStatus('授权中'); exchangeToken(code); } 
+      else { const token = localStorage.getItem('strava_access_token'); if (token) { setAuthStatus('已连接'); fetchCurrentWeekData(); } }
+  }, []);
+
+  const saveConfig = () => {
+      const sortedConfig = { ...config, races: [...config.races] };
+      sortedConfig.races.sort((a, b) => new Date(a.date) - new Date(b.date));
+      setConfig(sortedConfig); localStorage.setItem('strava_planner_config', JSON.stringify(sortedConfig)); setActiveModal(null);
+  };
+
+  const handleGoalChange = (field, value) => setConfig({ ...config, [field]: value });
+  const handleSplitChange = (type, discipline, value) => setConfig({ ...config, [type]: { ...config[type], [discipline]: value } });
+  const handleGoalBlur = () => {
+      const safeConfig = {
+          ...config,
+          plannedSwim: config.plannedSwim === '' ? '' : Math.max(0, Number(config.plannedSwim) || 0),
+          plannedBike: config.plannedBike === '' ? '' : Math.max(0, Number(config.plannedBike) || 0),
+          plannedRun: config.plannedRun === '' ? '' : Math.max(0, Number(config.plannedRun) || 0),
+          plannedSwimDist: config.plannedSwimDist === '' ? '' : Math.max(0, Number(config.plannedSwimDist) || 0),
+          plannedBikeDist: config.plannedBikeDist === '' ? '' : Math.max(0, Number(config.plannedBikeDist) || 0),
+          plannedRunDist: config.plannedRunDist === '' ? '' : Math.max(0, Number(config.plannedRunDist) || 0),
+      };
+      setConfig(safeConfig); localStorage.setItem('strava_planner_config', JSON.stringify(safeConfig));
+  };
+
+  const handleAddRace = () => setConfig({ ...config, races: [...config.races, { id: Date.now(), name: '', date: '', distance: '奥运标准距离 (51.5km)', priority: 'B', isCustomMode: false }] });
+  const handleRemoveRace = (id) => setConfig({ ...config, races: config.races.filter(r => r.id !== id) });
+  const handleRaceChange = (id, field, value) => {
+      const newRaces = config.races.map(r => {
+          if (r.id === id) {
+              const updatedRace = { ...r, [field]: value };
+              if (field === 'name') { const predefined = PREDEFINED_RACES.find(pr => pr.name === value); if (predefined && predefined.estDate) updatedRace.date = predefined.estDate; }
+              return updatedRace;
+          }
+          return r;
+      });
+      setConfig({ ...config, races: newRaces });
+  };
+
+  // Strava 授权流
+  const initiateStravaAuth = () => {
+      if (!config.clientId || !config.clientSecret) { alert("请填写完整的 Client ID 和 Client Secret！"); return; }
+      localStorage.setItem('strava_planner_config', JSON.stringify(config));
+      const redirectUri = window.location.origin + window.location.pathname;
+      window.location.href = `https://www.strava.com/oauth/authorize?client_id=${config.clientId}&response_type=code&redirect_uri=${encodeURIComponent(redirectUri)}&approval_prompt=force&scope=activity:read_all`;
+  };
+
+  const exchangeToken = async (code) => {
+      const savedConfig = JSON.parse(localStorage.getItem('strava_planner_config'));
+      if (!savedConfig || !savedConfig.clientSecret) return;
+      try {
+          const proxyUrl = 'https://corsproxy.io/?' + encodeURIComponent('https://www.strava.com/oauth/token');
+          const res = await fetch(proxyUrl, {
+              method: 'POST', headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ client_id: savedConfig.clientId, client_secret: savedConfig.clientSecret, code: code, grant_type: 'authorization_code' })
+          });
+          const data = await res.json();
+          window.history.replaceState({}, document.title, window.location.pathname);
+          if (data.access_token) {
+              localStorage.setItem('strava_access_token', data.access_token); localStorage.setItem('strava_refresh_token', data.refresh_token);
+              setAuthStatus('已连接'); fetchCurrentWeekData(); setActiveModal(null);
+          } else { setAuthStatus('未连接'); setErrorMsg("授权失败：请检查 Client Secret。"); }
+      } catch (err) { setAuthStatus('未连接'); setErrorMsg("网络错误：" + err.message); }
+  };
+
+  const fetchCurrentWeekData = async () => {
+      setLoading(true); const token = localStorage.getItem('strava_access_token');
+      const now = new Date(); const dayOfWeek = now.getDay() === 0 ? 7 : now.getDay();
+      const monday = new Date(now); monday.setDate(now.getDate() - dayOfWeek + 1); monday.setHours(0, 0, 0, 0);
+      const afterTimestamp = Math.floor(monday.getTime() / 1000);
+
+      try {
+          const res = await fetch(`https://www.strava.com/api/v3/athlete/activities?after=${afterTimestamp}&per_page=100`, { headers: { 'Authorization': `Bearer ${token}` } });
+          if (res.status === 401) { localStorage.removeItem('strava_access_token'); setAuthStatus('未连接'); setLoading(false); return; }
+          const data = await res.json();
+          let swimTime = 0, bikeTime = 0, runTime = 0, swimDist = 0, bikeDist = 0, runDist = 0;
+          data.forEach(activity => {
+              const minutes = Math.round(activity.moving_time / 60); const distMeters = activity.distance;
+              if (activity.type === 'Swim') { swimTime += minutes; swimDist += distMeters; }
+              if (activity.type === 'Ride' || activity.type === 'VirtualRide') { bikeTime += minutes; bikeDist += distMeters; }
+              if (activity.type === 'Run' || activity.type === 'TrailRun') { runTime += minutes; runDist += distMeters; }
+          });
+          setActivities({ swimTime, bikeTime, runTime, swimDist: parseFloat((swimDist / 1000).toFixed(1)), bikeDist: parseFloat((bikeDist / 1000).toFixed(1)), runDist: parseFloat((runDist / 1000).toFixed(1)) });
+      } catch (err) { setErrorMsg("获取数据失败。"); }
+      setLoading(false);
+  };
+
+  // --- 数据衍生计算 ---
+  const today = new Date(); today.setHours(0, 0, 0, 0);
+  const upcomingRaces = config.races.filter(r => r.date && new Date(r.date) >= today).sort((a, b) => new Date(a.date) - new Date(b.date));
+  const pastRaces = config.races.filter(r => r.date && new Date(r.date) < today).sort((a, b) => new Date(b.date) - new Date(a.date));
+  let nextPrimaryRace = upcomingRaces.find(r => r.priority === 'A') || upcomingRaces[0];
+  let isPast = false; let primaryDaysLeft = 0;
+
+  if (nextPrimaryRace) { primaryDaysLeft = Math.ceil((new Date(nextPrimaryRace.date) - today) / (1000 * 60 * 60 * 24)); } 
+  else if (pastRaces.length > 0) { nextPrimaryRace = pastRaces[0]; primaryDaysLeft = Math.ceil((today - new Date(nextPrimaryRace.date)) / (1000 * 60 * 60 * 24)); isPast = true; }
+
+  const trainingAdvice = getTrainingPhaseAdvice(isPast ? -1 : primaryDaysLeft);
+  const weeklyPlan = generateWeeklyPlan(trainingAdvice.id, config.goalDistance);
+
+  const pbTotal = Object.values(config.pbSplits).reduce((a,b)=> Number(a) + Number(b), 0);
+  const goalTotal = Object.values(config.goalSplits).reduce((a,b)=> Number(a) + Number(b), 0);
+  const pbDistStr = config.pbDistance.split(' ')[0];
+  const goalDistStr = config.goalDistance.split(' ')[0];
+  
+  let goalDisplay = "";
+  if (config.goalType === 'finish') goalDisplay = "顺利完赛 / 享受比赛";
+  else if (config.goalType === 'cutoff') goalDisplay = "压线完赛 (挑战关门)";
+  else goalDisplay = formatTime(goalTotal);
+  
+  const goalStrategyTxt = analyzeSplits(config.pbSplits, config.goalSplits, config.goalType, config.pbDistance, config.goalDistance);
+
+  const getProgress = (planned, actual) => planned == 0 ? 0 : Math.min(100, Math.round((actual / planned) * 100));
+  const getPriorityColor = (priority) => { if (priority === 'A') return 'bg-rose-100 text-rose-700 border-rose-200'; if (priority === 'B') return 'bg-blue-100 text-blue-700 border-blue-200'; return 'bg-zinc-100 text-zinc-700 border-zinc-200'; }
+
+  return (
+    <div className="min-h-screen bg-[#F4F4F5] p-4 md:p-8 font-sans text-slate-800 selection:bg-[#FC4C02] selection:text-white">
+      <div className="max-w-6xl mx-auto space-y-8">
+        
+        {/* 顶部标题区 */}
+        <header className="flex flex-col md:flex-row justify-between items-start md:items-end pb-2 gap-4">
+          <div>
+            <div className="flex items-center gap-2 mb-1">
+              <Zap className="text-[#FC4C02] h-6 w-6" />
+              <span className="text-sm font-bold tracking-widest text-[#FC4C02] uppercase">Peak Planner</span>
+            </div>
+            <h1 className="text-4xl font-extrabold text-zinc-900 tracking-tight flex items-center gap-3">
+              铁三训练看板
+              <span className="text-sm font-medium bg-zinc-200 text-zinc-600 px-3 py-1 rounded-full tracking-normal mb-1">{config.gender === 'M' ? '男子' : '女子'} {config.ageGroup}</span>
+            </h1>
+          </div>
+          
+          <div className="flex gap-3 items-center">
+            <button onClick={() => setActiveModal('calendar')} className="bg-white text-zinc-700 border border-zinc-200 px-4 py-3 rounded-2xl hover:bg-zinc-50 hover:shadow-md transition-all flex items-center gap-2 text-sm font-bold shadow-sm">
+                <Target className="h-4 w-4 text-blue-600"/> 赛历与目标
+            </button>
+            
+            <div className="flex items-stretch shadow-lg rounded-2xl overflow-hidden hover:shadow-xl transition-all">
+                <button 
+                    onClick={() => { if (authStatus === '已连接') { fetchCurrentWeekData(); } else { setActiveModal('strava_setup'); } }} 
+                    disabled={loading || authStatus === '授权中'}
+                    className={`px-6 py-3 text-sm font-bold text-white transition flex items-center gap-2 ${authStatus === '已连接' ? 'bg-zinc-900 hover:bg-zinc-800' : 'bg-[#FC4C02] hover:bg-[#E34402]'} disabled:opacity-70`}
+                >
+                    {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : (authStatus === '已连接' ? <Activity className="h-4 w-4 text-[#FC4C02]" /> : <Zap className="h-4 w-4" />)}
+                    {loading ? '同步中...' : (authStatus === '已连接' ? 'Strava 已连接' : '连接 Strava 授权')}
+                </button>
+                <button 
+                    onClick={() => setActiveModal('strava_setup')}
+                    className={`px-3 py-3 text-white border-l transition flex items-center justify-center ${authStatus === '已连接' ? 'bg-zinc-900 hover:bg-zinc-800 border-zinc-700' : 'bg-[#FC4C02] hover:bg-[#E34402] border-[#E34402]'}`}
+                    title="Strava 接口设置"
+                >
+                    <Settings className="h-4 w-4" />
+                </button>
+            </div>
+          </div>
+        </header>
+
+        {errorMsg && (<div className="bg-rose-50 border border-rose-200 text-rose-700 px-4 py-3 rounded-2xl shadow-sm flex items-center gap-2"><AlertTriangle className="h-5 w-5"/> <span className="font-medium text-sm">{errorMsg}</span></div>)}
+
+        {/* 核心第一排：赛事倒计时 与 拆分战术分析 */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            {/* 左侧：倒计时黑卡 */}
+            <div className="bg-zinc-900 rounded-3xl shadow-xl p-8 flex flex-col justify-between relative overflow-hidden group">
+                <div className="absolute -top-24 -right-24 w-64 h-64 bg-[#FC4C02] rounded-full mix-blend-multiply filter blur-3xl opacity-20 group-hover:opacity-30 transition-opacity duration-700"></div>
+                <div className="absolute -bottom-24 -left-24 w-64 h-64 bg-blue-500 rounded-full mix-blend-multiply filter blur-3xl opacity-20 group-hover:opacity-30 transition-opacity duration-700"></div>
+                <div className="absolute top-6 right-6 opacity-20 text-white"><Trophy className="h-16 w-16" /></div>
                 
-                if (code) {
-                    setAuthStatus('授权中');
-                    exchangeToken(code);
-                } else {
-                    const token = localStorage.getItem('strava_access_token');
-                    if (token) {
-                        setAuthStatus('已连接');
-                        fetchCurrentWeekData();
-                    }
-                }
-            }, []);
-
-            // 保存配置
-            const saveConfig = () => {
-                localStorage.setItem('strava_planner_config', JSON.stringify(config));
-                setShowSettings(false);
-                setErrorMsg('配置已保存！你可以点击“连接 Strava”进行同步。');
-                setTimeout(() => setErrorMsg(''), 3000);
-            };
-
-            // 1. 发起授权
-            const handleConnectStrava = () => {
-                if (!config.clientId) {
-                    alert("请先在设置中填写 Strava Client ID！");
-                    setShowSettings(true);
-                    return;
-                }
-                const redirectUri = window.location.origin + window.location.pathname;
-                const authUrl = `https://www.strava.com/oauth/authorize?client_id=${config.clientId}&response_type=code&redirect_uri=${redirectUri}&approval_prompt=force&scope=activity:read_all`;
-                window.location.href = authUrl; // 跳转到 Strava 授权页
-            };
-
-            // 2. 用 Code 换取 Token
-            const exchangeToken = async (code) => {
-                const savedConfig = JSON.parse(localStorage.getItem('strava_planner_config'));
-                if (!savedConfig || !savedConfig.clientSecret) {
-                    setErrorMsg("缺少 Client Secret，无法完成授权。请在设置中补充。");
-                    return;
-                }
-
-                try {
-                    const res = await fetch('https://www.strava.com/oauth/token', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({
-                            client_id: savedConfig.clientId,
-                            client_secret: savedConfig.clientSecret,
-                            code: code,
-                            grant_type: 'authorization_code'
-                        })
-                    });
-                    const data = await res.json();
-                    if (data.access_token) {
-                        localStorage.setItem('strava_access_token', data.access_token);
-                        localStorage.setItem('strava_refresh_token', data.refresh_token);
-                        // 清除 URL 中的 code
-                        window.history.replaceState({}, document.title, window.location.pathname);
-                        setAuthStatus('已连接');
-                        fetchCurrentWeekData();
-                    } else {
-                        setErrorMsg("授权失败：" + JSON.stringify(data));
-                    }
-                } catch (err) {
-                    setErrorMsg("网络请求失败：" + err.message);
-                }
-            };
-
-            // 3. 拉取本周活动数据
-            const fetchCurrentWeekData = async () => {
-                setLoading(true);
-                const token = localStorage.getItem('strava_access_token');
-                
-                // 计算本周一的零点时间戳
-                const now = new Date();
-                const dayOfWeek = now.getDay() === 0 ? 7 : now.getDay();
-                const monday = new Date(now);
-                monday.setDate(now.getDate() - dayOfWeek + 1);
-                monday.setHours(0, 0, 0, 0);
-                const afterTimestamp = Math.floor(monday.getTime() / 1000);
-
-                try {
-                    const res = await fetch(`https://www.strava.com/api/v3/athlete/activities?after=${afterTimestamp}&per_page=100`, {
-                        headers: { 'Authorization': `Bearer ${token}` }
-                    });
-                    
-                    if (res.status === 401) {
-                        // Token 过期处理 (为保持单文件简单，这里提示重新授权)
-                        localStorage.removeItem('strava_access_token');
-                        setAuthStatus('未连接');
-                        setErrorMsg('授权已过期，请重新连接 Strava。');
-                        setLoading(false);
-                        return;
-                    }
-
-                    const data = await res.json();
-                    
-                    let swimTime = 0, bikeTime = 0, runTime = 0;
-                    data.forEach(activity => {
-                        const minutes = Math.round(activity.moving_time / 60);
-                        if (activity.type === 'Swim') swimTime += minutes;
-                        if (activity.type === 'Ride' || activity.type === 'VirtualRide') bikeTime += minutes;
-                        if (activity.type === 'Run' || activity.type === 'TrailRun') runTime += minutes;
-                    });
-
-                    setActivities({ swim: swimTime, bike: bikeTime, run: runTime });
-                } catch (err) {
-                    setErrorMsg("获取数据失败，请检查网络或配置。");
-                }
-                setLoading(false);
-            };
-
-            // --- 辅助计算 ---
-            const daysLeft = Math.max(0, Math.ceil((new Date(config.raceDate) - new Date()) / (1000 * 60 * 60 * 24)));
-            const getProgress = (planned, actual) => planned === 0 ? 0 : Math.min(100, Math.round((actual / planned) * 100));
-            const getProgressColor = (percent) => {
-                if (percent < 60) return 'bg-red-500';
-                if (percent < 85) return 'bg-yellow-500';
-                return 'bg-emerald-500';
-            };
-
-            return (
-                <div className="min-h-screen p-4 md:p-8 font-sans max-w-5xl mx-auto space-y-6">
-                    
-                    {/* 头部 */}
-                    <header className="flex flex-col md:flex-row justify-between items-start md:items-center pb-4 border-b border-slate-200 gap-4">
-                        <div className="flex items-center gap-3">
-                            <div className="bg-blue-600 p-2 rounded-lg text-white">
-                                <IconActivity />
-                            </div>
-                            <div>
-                                <h1 className="text-2xl font-bold text-slate-900">铁三训练可视化看板</h1>
-                                <p className="text-sm text-slate-500">数据通过本地浏览器直连 Strava</p>
-                            </div>
-                        </div>
-                        <div className="flex gap-2">
-                            <button 
-                                onClick={() => setShowSettings(true)}
-                                className="bg-slate-200 text-slate-700 px-3 py-2 rounded-lg hover:bg-slate-300 transition flex items-center gap-2 text-sm font-medium"
-                            >
-                                <IconSettings /> 设置
-                            </button>
-                            <button 
-                                onClick={handleConnectStrava}
-                                disabled={authStatus === '授权中'}
-                                className={`${authStatus === '已连接' ? 'bg-[#FC4C02] hover:bg-[#E34402]' : 'bg-slate-900 hover:bg-slate-800'} text-white px-4 py-2 rounded-lg transition flex items-center gap-2 text-sm font-bold shadow-sm disabled:opacity-50`}
-                            >
-                                {loading ? '同步中...' : (authStatus === '已连接' ? '更新 Strava 数据' : '连接 Strava')}
-                            </button>
-                        </div>
-                    </header>
-
-                    {/* 错误提示 */}
-                    {errorMsg && (
-                        <div className="bg-red-100 border border-red-200 text-red-700 px-4 py-3 rounded-xl relative">
-                            <span className="block sm:inline">{errorMsg}</span>
-                        </div>
+                <div className="relative z-10">
+                    <div className="flex items-center gap-2 mb-2">
+                        <span className={`w-2 h-2 rounded-full ${isPast ? 'bg-zinc-500' : 'bg-[#FC4C02] animate-pulse'}`}></span>
+                        <h2 className="text-xs font-bold text-zinc-400 uppercase tracking-widest">{isPast ? '上一场 ' : '下一次 '} {nextPrimaryRace?.priority || 'A'}级重点赛事</h2>
+                    </div>
+                    {nextPrimaryRace ? (
+                        <>
+                            <h3 className="text-2xl font-bold text-white mb-1 leading-tight">{nextPrimaryRace.name}</h3>
+                            <p className="text-sm text-zinc-400 font-medium">{nextPrimaryRace.date} • {nextPrimaryRace.distance.split(' ')[0]}</p>
+                        </>
+                    ) : (
+                        <h3 className="text-lg font-medium text-zinc-500 mt-2">点击上方赛历添加你的目标赛事</h3>
                     )}
+                </div>
+                {nextPrimaryRace && (
+                    <div className="mt-8 relative z-10 flex items-baseline gap-2">
+                        <span className="text-7xl font-black text-white leading-none tracking-tighter">{primaryDaysLeft}</span>
+                        <span className="text-xl text-zinc-400 font-bold mb-1.5 uppercase">{isPast ? 'Days Ago' : 'Days'}</span>
+                    </div>
+                )}
+            </div>
 
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                        {/* 赛事卡片 */}
-                        <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6 flex flex-col justify-between relative overflow-hidden">
-                            <div className="absolute top-0 right-0 p-4 text-slate-100">
-                                <IconTrophy />
+            {/* 中右侧：AI 分项战术板 (莫兰迪色系) */}
+            <div className="lg:col-span-2 bg-white rounded-3xl shadow-sm border border-zinc-200/60 p-8 flex flex-col hover:shadow-md transition-shadow">
+                <div className="flex items-center gap-2 mb-6">
+                    <Target className="h-5 w-5 text-zinc-400" />
+                    <h2 className="text-sm font-bold text-zinc-400 uppercase tracking-widest">AI 拆项战术板与备赛引擎</h2>
+                </div>
+                
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-8 flex-1">
+                    {/* 当前阶段指导 */}
+                    <div className="flex flex-col">
+                        <h3 className="text-xs font-bold text-zinc-400 uppercase tracking-wider mb-3">当前阶段指导 (距比赛 {primaryDaysLeft} 天)</h3>
+                        <div className={`px-4 py-2 rounded-2xl border font-bold inline-flex items-center gap-2 mb-4 text-sm w-max ${trainingAdvice.color}`}>
+                            <Activity className="h-4 w-4" /> {trainingAdvice.phase.split('(')[0]}
+                        </div>
+                        <p className="text-sm text-zinc-800 font-bold mb-2">{trainingAdvice.desc}</p>
+                        <div className="bg-zinc-50 p-4 rounded-2xl border border-zinc-100 text-sm text-zinc-600 leading-relaxed font-medium flex-1">
+                            <span className="text-zinc-900 font-bold">🎯 本周建议重点：</span>{trainingAdvice.focus}
+                        </div>
+                    </div>
+
+                    {/* 成绩拆解分析 */}
+                    <div className="border-t md:border-t-0 md:border-l border-zinc-100 pt-6 md:pt-0 md:pl-8 flex flex-col">
+                        <h3 className="text-xs font-bold text-zinc-400 uppercase tracking-wider mb-3">成绩拆解分析</h3>
+                        
+                        <div className="flex flex-col gap-3 bg-zinc-50 p-4 rounded-2xl border border-zinc-100 mb-4">
+                            <div className="flex justify-between items-center pb-3 border-b border-zinc-200/60">
+                                <div className="text-xs text-zinc-500 font-medium">PB 总计 ({pbDistStr})</div>
+                                <div className="text-sm font-bold text-zinc-800 bg-white px-2 py-1 rounded shadow-sm border border-zinc-100">{formatTime(pbTotal)}</div>
                             </div>
-                            <div className="relative z-10">
-                                <h2 className="text-sm font-semibold text-slate-500 uppercase tracking-wider mb-1">A级目标赛事</h2>
-                                <h3 className="text-xl font-bold text-slate-800 truncate">{config.raceName}</h3>
-                                <p className="text-sm text-slate-500 mt-1">{config.raceDate}</p>
+                            <div className="flex justify-between items-center pt-1">
+                                <div className="text-xs font-bold uppercase text-blue-600">目标 ({goalDistStr})</div>
+                                <div className={`text-base font-black leading-none ${config.goalType === 'cutoff' ? 'text-rose-600' : 'text-blue-600'}`}>{goalDisplay}</div>
                             </div>
-                            <div className="mt-6 flex items-end gap-2 relative z-10">
-                                <span className="text-5xl font-black text-slate-900 leading-none">{daysLeft}</span>
-                                <span className="text-lg text-slate-500 font-medium mb-1">天</span>
+
+                            {/* 五项微小进度条式拆解 */}
+                            <div className="grid grid-cols-5 gap-1 mt-3 pt-3 border-t border-zinc-200/60 text-center">
+                                {['swim', 't1', 'bike', 't2', 'run'].map((item, idx) => {
+                                    const labels = ['🏊', '🔄', '🚴', '🔄', '🏃'];
+                                    const pbVal = config.pbSplits[item];
+                                    const goalVal = config.goalSplits[item];
+                                    const diff = Number(pbVal) - Number(goalVal);
+                                    return (
+                                        <div key={item} className="flex flex-col items-center">
+                                            <div className="text-[10px] text-zinc-400 mb-1">{labels[idx]}</div>
+                                            <div className="font-bold text-zinc-800 text-xs mb-1">{pbVal}</div>
+                                            {config.goalType === 'time' && (
+                                                <div className={`text-[10px] font-bold px-1 py-0.5 rounded w-full ${diff > 0 ? 'bg-emerald-100 text-emerald-700' : 'bg-zinc-100 text-zinc-400'}`}>
+                                                    {diff > 0 ? `-${diff}` : goalVal}
+                                                </div>
+                                            )}
+                                        </div>
+                                    )
+                                })}
                             </div>
                         </div>
+                        
+                        <div className={`text-xs leading-relaxed p-4 rounded-2xl border flex-1 font-medium ${config.goalType === 'cutoff' ? 'bg-rose-50 text-rose-800 border-rose-100' : 'bg-blue-50/50 text-slate-700 border-blue-100/50'}`}>
+                            <strong className={config.goalType === 'cutoff' ? 'text-rose-700 block mb-1.5' : 'text-blue-700 block mb-1.5'}>💡 系统战术剖析：</strong>
+                            {goalStrategyTxt}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
 
-                        {/* 本周执行状态 */}
-                        <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6 md:col-span-2">
-                            <div className="flex justify-between items-center mb-6">
-                                <h2 className="text-lg font-bold text-slate-800">本周单项微观达成率</h2>
-                                <span className="text-xs font-medium bg-orange-100 text-orange-700 px-2 py-1 rounded border border-orange-200">
-                                    {authStatus === '已连接' ? '数据已同步' : '等待同步'}
+        {/* 第二排：AI 智能周课表参考 */}
+        <div className="bg-white rounded-3xl shadow-sm border border-zinc-200/60 p-8 hover:shadow-md transition-shadow">
+            <div className="flex flex-col md:flex-row md:justify-between md:items-center mb-6 gap-4">
+                <div className="flex items-center gap-2">
+                    <Calendar className="h-5 w-5 text-zinc-400" />
+                    <h2 className="text-lg font-extrabold text-zinc-800">AI 智能周课表参考</h2>
+                </div>
+                <span className="text-xs bg-indigo-50 text-indigo-600 px-4 py-1.5 rounded-full border border-indigo-100 font-bold uppercase tracking-wider">
+                    自动适配: {trainingAdvice.phase.split('(')[0]} • {goalDistStr}
+                </span>
+            </div>
+            
+            <div className="grid grid-cols-1 md:grid-cols-7 gap-3">
+                {weeklyPlan.map(day => (
+                    <div key={day.day} className={`border rounded-2xl p-4 flex flex-col ${day.style.split(' ')[0]} bg-opacity-40 transition-transform hover:-translate-y-1`}>
+                        <div className="font-bold text-sm text-zinc-800 mb-3 border-b border-zinc-200/50 pb-2">{day.day}</div>
+                        <div className={`text-[10px] font-bold px-2 py-1 rounded inline-block w-max mb-2 border ${day.style}`}>{day.tag}</div>
+                        <p className="text-xs text-zinc-700 leading-relaxed font-medium">{day.text}</p>
+                    </div>
+                ))}
+            </div>
+            <p className="text-xs text-zinc-400 mt-5 text-center font-medium">注：此为基于大数据的通用结构模板。请根据个人疲劳度进行微调，汇总后填入下方的“每周目标”。</p>
+        </div>
+
+        {/* 第三排：赛程列表 与 本周执行数据 */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            
+            {/* 左侧：赛程列表 */}
+            <div className="bg-white rounded-3xl shadow-sm border border-zinc-200/60 p-8 flex flex-col hover:shadow-md transition-shadow">
+                <div className="flex justify-between items-center mb-6">
+                    <h2 className="text-lg font-extrabold text-zinc-800">完整赛程表</h2>
+                    <span className="text-xs bg-zinc-100 text-zinc-500 px-3 py-1 rounded-full font-bold">{config.races.length} 场</span>
+                </div>
+                <div className="space-y-3 overflow-y-auto max-h-[380px] pr-2 custom-scrollbar">
+                    {config.races.filter(r => r.id !== nextPrimaryRace?.id).map(race => {
+                        const raceDate = new Date(race.date);
+                        const diffDays = Math.ceil((raceDate - today) / (1000 * 60 * 60 * 24));
+                        const isRacePast = diffDays < 0;
+                        return (
+                        <div key={race.id} className="flex items-center justify-between border border-zinc-100 p-4 rounded-2xl bg-zinc-50/50 hover:bg-white hover:shadow-sm transition-all">
+                            <div className="overflow-hidden">
+                                <div className="flex items-center gap-2 mb-1.5">
+                                    <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded border ${getPriorityColor(race.priority)}`}>{race.priority}</span>
+                                    <span className={`text-sm font-bold truncate max-w-[150px] ${isRacePast ? 'text-zinc-400 line-through' : 'text-zinc-800'}`}>{race.name}</span>
+                                </div>
+                                <p className="text-xs text-zinc-500 font-medium">{race.date} • {race.distance.split(' ')[0]}</p>
+                            </div>
+                            <div className="text-right shrink-0">
+                                <span className={`text-xs font-bold px-3 py-1 rounded-full ${isRacePast ? 'bg-zinc-200 text-zinc-500' : 'bg-blue-50 text-blue-600'}`}>
+                                    {isRacePast ? '已结束' : `还有 ${diffDays} 天`}
                                 </span>
                             </div>
-                            
-                            <div className="space-y-5">
-                                {/* 游泳 */}
-                                <div>
-                                    <div className="flex justify-between text-sm mb-1.5">
-                                        <span className="font-bold text-blue-700">🏊 游泳</span>
-                                        <span className="text-slate-500">
-                                            <span className="font-semibold text-slate-800">{activities.swim}</span> / {config.plannedSwim} 分钟
-                                        </span>
-                                    </div>
-                                    <div className="h-3 w-full bg-slate-100 rounded-full overflow-hidden">
-                                        <div className={`h-full rounded-full transition-all duration-1000 ${getProgressColor(getProgress(config.plannedSwim, activities.swim))}`}
-                                             style={{ width: `${getProgress(config.plannedSwim, activities.swim)}%` }}></div>
-                                    </div>
-                                </div>
+                        </div>
+                    )})}
+                    {config.races.length <= 1 && (
+                        <div className="text-center py-12 text-zinc-400 text-sm font-medium border-2 border-dashed border-zinc-200 rounded-2xl">
+                            可以在顶部设置中添加更多比赛
+                        </div>
+                    )}
+                </div>
+            </div>
 
-                                {/* 自行车 */}
-                                <div>
-                                    <div className="flex justify-between text-sm mb-1.5">
-                                        <span className="font-bold text-emerald-700">🚴 自行车</span>
-                                        <span className="text-slate-500">
-                                            <span className="font-semibold text-slate-800">{activities.bike}</span> / {config.plannedBike} 分钟
-                                        </span>
-                                    </div>
-                                    <div className="h-3 w-full bg-slate-100 rounded-full overflow-hidden">
-                                        <div className={`h-full rounded-full transition-all duration-1000 ${getProgressColor(getProgress(config.plannedBike, activities.bike))}`}
-                                             style={{ width: `${getProgress(config.plannedBike, activities.bike)}%` }}></div>
-                                    </div>
+            {/* 右侧：本周目标与达成率（渐变进度条） */}
+            <div className="bg-white rounded-3xl shadow-sm border border-zinc-200/60 p-8 lg:col-span-2 flex flex-col hover:shadow-md transition-shadow">
+                <div className="flex justify-between items-center mb-6">
+                    <h2 className="text-lg font-extrabold text-zinc-800">自定义本周目标 / Strava达成追踪</h2>
+                    <span className="text-xs font-bold bg-emerald-50 text-emerald-600 px-3 py-1 rounded-full border border-emerald-100 flex items-center gap-1">
+                        <CheckCircle className="h-3 w-3" /> 基础期盯时长，冲刺期盯距离
+                    </span>
+                </div>
+                
+                <div className="space-y-6 flex-1 flex flex-col justify-center">
+                    
+                    {/* 游泳 */}
+                    <div className="group">
+                        <div className="flex flex-wrap justify-between items-end mb-3 gap-2">
+                            <span className="flex items-center gap-2 font-bold text-zinc-800 text-base">
+                                <div className="bg-cyan-50 p-2 rounded-xl border border-cyan-100"><Waves className="h-5 w-5 text-cyan-500" /></div> 游泳
+                            </span>
+                            <div className="flex items-center gap-1 bg-zinc-50 px-2 py-1.5 rounded-xl border border-zinc-200 shadow-sm">
+                                <span className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest pl-1">Target</span>
+                                <input type="number" value={config.plannedSwim} onChange={e => handleGoalChange('plannedSwim', e.target.value)} onBlur={handleGoalBlur} className="w-10 text-center text-sm font-bold text-zinc-800 bg-white border border-zinc-200 rounded focus:border-[#FC4C02] focus:outline-none" />
+                                <span className="text-xs text-zinc-500 pr-1 border-r border-zinc-200">m</span>
+                                <input type="number" value={config.plannedSwimDist} onChange={e => handleGoalChange('plannedSwimDist', e.target.value)} onBlur={handleGoalBlur} className="w-12 text-center text-sm font-bold text-zinc-800 bg-white border border-zinc-200 rounded focus:border-[#FC4C02] focus:outline-none ml-1" />
+                                <span className="text-xs text-zinc-500 pr-1">km</span>
+                            </div>
+                        </div>
+                        <div className="grid grid-cols-2 gap-4">
+                            <div>
+                                <div className="flex justify-between text-xs mb-1.5"><span className="text-zinc-500 font-medium">时长 (分钟)</span><span className="font-bold text-zinc-800">{activities.swimTime} / {config.plannedSwim}</span></div>
+                                <div className="h-3 w-full bg-zinc-100 rounded-full overflow-hidden p-0.5">
+                                    <div className="h-full rounded-full transition-all duration-1000 ease-out bg-gradient-to-r from-cyan-300 to-blue-500" style={{ width: `${getProgress(config.plannedSwim, activities.swimTime)}%` }}></div>
                                 </div>
-
-                                {/* 跑步 */}
-                                <div>
-                                    <div className="flex justify-between text-sm mb-1.5">
-                                        <span className="font-bold text-rose-700">🏃 跑步</span>
-                                        <span className="text-slate-500">
-                                            <span className="font-semibold text-slate-800">{activities.run}</span> / {config.plannedRun} 分钟
-                                        </span>
-                                    </div>
-                                    <div className="h-3 w-full bg-slate-100 rounded-full overflow-hidden">
-                                        <div className={`h-full rounded-full transition-all duration-1000 ${getProgressColor(getProgress(config.plannedRun, activities.run))}`}
-                                             style={{ width: `${getProgress(config.plannedRun, activities.run)}%` }}></div>
-                                    </div>
+                            </div>
+                            <div>
+                                <div className="flex justify-between text-xs mb-1.5"><span className="text-zinc-500 font-medium">距离 (公里)</span><span className="font-bold text-zinc-800">{activities.swimDist} / {config.plannedSwimDist}</span></div>
+                                <div className="h-3 w-full bg-zinc-100 rounded-full overflow-hidden p-0.5">
+                                    <div className="h-full rounded-full transition-all duration-1000 ease-out bg-gradient-to-r from-cyan-300 to-blue-500" style={{ width: `${getProgress(config.plannedSwimDist, activities.swimDist)}%` }}></div>
                                 </div>
                             </div>
                         </div>
                     </div>
 
-                    {/* 设置弹窗 */}
-                    {showSettings && (
-                        <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-                            <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden flex flex-col max-h-[90vh]">
-                                <div className="p-5 border-b border-slate-100 flex justify-between items-center bg-slate-50">
-                                    <h3 className="font-bold text-lg">系统设置与密钥</h3>
+                    {/* 自行车 */}
+                    <div className="group pt-4 border-t border-zinc-100">
+                        <div className="flex flex-wrap justify-between items-end mb-3 gap-2">
+                            <span className="flex items-center gap-2 font-bold text-zinc-800 text-base">
+                                <div className="bg-emerald-50 p-2 rounded-xl border border-emerald-100"><Bike className="h-5 w-5 text-emerald-500" /></div> 自行车
+                            </span>
+                            <div className="flex items-center gap-1 bg-zinc-50 px-2 py-1.5 rounded-xl border border-zinc-200 shadow-sm">
+                                <span className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest pl-1">Target</span>
+                                <input type="number" value={config.plannedBike} onChange={e => handleGoalChange('plannedBike', e.target.value)} onBlur={handleGoalBlur} className="w-10 text-center text-sm font-bold text-zinc-800 bg-white border border-zinc-200 rounded focus:border-[#FC4C02] focus:outline-none" />
+                                <span className="text-xs text-zinc-500 pr-1 border-r border-zinc-200">m</span>
+                                <input type="number" value={config.plannedBikeDist} onChange={e => handleGoalChange('plannedBikeDist', e.target.value)} onBlur={handleGoalBlur} className="w-12 text-center text-sm font-bold text-zinc-800 bg-white border border-zinc-200 rounded focus:border-[#FC4C02] focus:outline-none ml-1" />
+                                <span className="text-xs text-zinc-500 pr-1">km</span>
+                            </div>
+                        </div>
+                        <div className="grid grid-cols-2 gap-4">
+                            <div>
+                                <div className="flex justify-between text-xs mb-1.5"><span className="text-zinc-500 font-medium">时长 (分钟)</span><span className="font-bold text-zinc-800">{activities.bikeTime} / {config.plannedBike}</span></div>
+                                <div className="h-3 w-full bg-zinc-100 rounded-full overflow-hidden p-0.5">
+                                    <div className="h-full rounded-full transition-all duration-1000 ease-out bg-gradient-to-r from-emerald-300 to-green-500" style={{ width: `${getProgress(config.plannedBike, activities.bikeTime)}%` }}></div>
                                 </div>
-                                <div className="p-6 overflow-y-auto space-y-5">
-                                    <div className="bg-blue-50 text-blue-800 text-xs p-3 rounded-lg border border-blue-100">
-                                        所有配置仅保存在你当前浏览器的本地存储(Local Storage)中，绝对安全，不会上传到任何服务器。
-                                    </div>
-                                    
-                                    <div className="space-y-4">
-                                        <h4 className="font-bold text-sm text-slate-500 uppercase border-b pb-2">1. Strava API 配置</h4>
-                                        <div>
-                                            <label className="block text-xs font-medium text-slate-700 mb-1">Client ID</label>
-                                            <input type="text" value={config.clientId} onChange={e => setConfig({...config, clientId: e.target.value})} className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="例如：123456" />
-                                        </div>
-                                        <div>
-                                            <label className="block text-xs font-medium text-slate-700 mb-1">Client Secret</label>
-                                            <input type="password" value={config.clientSecret} onChange={e => setConfig({...config, clientSecret: e.target.value})} className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="例如：a1b2c3d4..." />
-                                        </div>
-                                        
-                                        <h4 className="font-bold text-sm text-slate-500 uppercase border-b pb-2 mt-6">2. 目标与周计划</h4>
-                                        <div className="grid grid-cols-2 gap-4">
-                                            <div>
-                                                <label className="block text-xs font-medium text-slate-700 mb-1">赛事名称</label>
-                                                <input type="text" value={config.raceName} onChange={e => setConfig({...config, raceName: e.target.value})} className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm" />
-                                            </div>
-                                            <div>
-                                                <label className="block text-xs font-medium text-slate-700 mb-1">赛事日期</label>
-                                                <input type="date" value={config.raceDate} onChange={e => setConfig({...config, raceDate: e.target.value})} className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm" />
-                                            </div>
-                                            <div>
-                                                <label className="block text-xs font-medium text-slate-700 mb-1">每周计划游泳 (分钟)</label>
-                                                <input type="number" value={config.plannedSwim} onChange={e => setConfig({...config, plannedSwim: Number(e.target.value)})} className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm" />
-                                            </div>
-                                            <div>
-                                                <label className="block text-xs font-medium text-slate-700 mb-1">每周计划自行车 (分钟)</label>
-                                                <input type="number" value={config.plannedBike} onChange={e => setConfig({...config, plannedBike: Number(e.target.value)})} className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm" />
-                                            </div>
-                                            <div>
-                                                <label className="block text-xs font-medium text-slate-700 mb-1">每周计划跑步 (分钟)</label>
-                                                <input type="number" value={config.plannedRun} onChange={e => setConfig({...config, plannedRun: Number(e.target.value)})} className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm" />
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-                                <div className="p-5 border-t border-slate-100 flex justify-end gap-3 bg-slate-50">
-                                    <button onClick={() => setShowSettings(false)} className="px-4 py-2 text-sm font-medium text-slate-600 hover:text-slate-800">取消</button>
-                                    <button onClick={saveConfig} className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-lg text-sm font-bold transition">保存配置</button>
+                            </div>
+                            <div>
+                                <div className="flex justify-between text-xs mb-1.5"><span className="text-zinc-500 font-medium">距离 (公里)</span><span className="font-bold text-zinc-800">{activities.bikeDist} / {config.plannedBikeDist}</span></div>
+                                <div className="h-3 w-full bg-zinc-100 rounded-full overflow-hidden p-0.5">
+                                    <div className="h-full rounded-full transition-all duration-1000 ease-out bg-gradient-to-r from-emerald-300 to-green-500" style={{ width: `${getProgress(config.plannedBikeDist, activities.bikeDist)}%` }}></div>
                                 </div>
                             </div>
                         </div>
-                    )}
-                </div>
-            );
-        }
+                    </div>
 
-        const root = ReactDOM.createRoot(document.getElementById('root'));
-        root.render(<App />);
-    </script>
-</body>
-</html>
+                    {/* 跑步 */}
+                    <div className="group pt-4 border-t border-zinc-100">
+                        <div className="flex flex-wrap justify-between items-end mb-3 gap-2">
+                            <span className="flex items-center gap-2 font-bold text-zinc-800 text-base">
+                                <div className="bg-orange-50 p-2 rounded-xl border border-orange-100"><Footprints className="h-5 w-5 text-[#FC4C02]" /></div> 跑步
+                            </span>
+                            <div className="flex items-center gap-1 bg-zinc-50 px-2 py-1.5 rounded-xl border border-zinc-200 shadow-sm">
+                                <span className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest pl-1">Target</span>
+                                <input type="number" value={config.plannedRun} onChange={e => handleGoalChange('plannedRun', e.target.value)} onBlur={handleGoalBlur} className="w-10 text-center text-sm font-bold text-zinc-800 bg-white border border-zinc-200 rounded focus:border-[#FC4C02] focus:outline-none" />
+                                <span className="text-xs text-zinc-500 pr-1 border-r border-zinc-200">m</span>
+                                <input type="number" value={config.plannedRunDist} onChange={e => handleGoalChange('plannedRunDist', e.target.value)} onBlur={handleGoalBlur} className="w-12 text-center text-sm font-bold text-zinc-800 bg-white border border-zinc-200 rounded focus:border-[#FC4C02] focus:outline-none ml-1" />
+                                <span className="text-xs text-zinc-500 pr-1">km</span>
+                            </div>
+                        </div>
+                        <div className="grid grid-cols-2 gap-4">
+                            <div>
+                                <div className="flex justify-between text-xs mb-1.5"><span className="text-zinc-500 font-medium">时长 (分钟)</span><span className="font-bold text-zinc-800">{activities.runTime} / {config.plannedRun}</span></div>
+                                <div className="h-3 w-full bg-zinc-100 rounded-full overflow-hidden p-0.5">
+                                    <div className="h-full rounded-full transition-all duration-1000 ease-out bg-gradient-to-r from-orange-400 to-[#FC4C02]" style={{ width: `${getProgress(config.plannedRun, activities.runTime)}%` }}></div>
+                                </div>
+                            </div>
+                            <div>
+                                <div className="flex justify-between text-xs mb-1.5"><span className="text-zinc-500 font-medium">距离 (公里)</span><span className="font-bold text-zinc-800">{activities.runDist} / {config.plannedRunDist}</span></div>
+                                <div className="h-3 w-full bg-zinc-100 rounded-full overflow-hidden p-0.5">
+                                    <div className="h-full rounded-full transition-all duration-1000 ease-out bg-gradient-to-r from-orange-400 to-[#FC4C02]" style={{ width: `${getProgress(config.plannedRunDist, activities.runDist)}%` }}></div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        {/* 历史趋势图 (UI展示模块) */}
+        <div className="bg-white rounded-3xl shadow-sm border border-zinc-200/60 p-8 hover:shadow-md transition-shadow">
+            <div className="flex justify-between items-center mb-6">
+                <div className="flex items-center gap-2">
+                    <TrendingUp className="h-5 w-5 text-zinc-400" />
+                    <h2 className="text-lg font-extrabold text-zinc-800">训练容量历史趋势</h2>
+                </div>
+                <span className="text-[10px] font-bold bg-zinc-100 text-zinc-400 px-2 py-1 rounded uppercase tracking-wider">Demo Data</span>
+            </div>
+            <div className="h-56 w-full">
+              <ResponsiveContainer width="100%" height="100%">
+                <ComposedChart data={MOCK_WEEKLY_TRENDS} margin={{ top: 10, right: 0, left: -25, bottom: 0 }}>
+                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f4f4f5" />
+                  <XAxis dataKey="week" axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: '#a1a1aa', fontWeight: 600 }} dy={10} />
+                  <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: '#a1a1aa' }} />
+                  <Tooltip cursor={{fill: '#f4f4f5'}} contentStyle={{ borderRadius: '16px', border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)', fontWeight: 'bold', color: '#27272a' }} />
+                  <Bar dataKey="planned" name="计划时长(h)" fill="#f4f4f5" radius={[6, 6, 6, 6]} barSize={24} />
+                  <Line type="monotone" dataKey="actual" name="实际达成(h)" stroke="#18181b" strokeWidth={3} dot={{ r: 4, strokeWidth: 3, fill: '#fff' }} activeDot={{ r: 6, fill: '#FC4C02', stroke: '#fff' }} />
+                </ComposedChart>
+              </ResponsiveContainer>
+            </div>
+        </div>
+
+      </div>
+
+      {/* 赛历与成绩设置弹窗 */}
+      {activeModal === 'calendar' && (
+        <div className="fixed inset-0 bg-zinc-900/60 backdrop-blur-md flex items-center justify-center z-50 p-4">
+            <div className="bg-white rounded-[2rem] shadow-2xl w-full max-w-2xl flex flex-col max-h-[90vh]">
+                <div className="p-6 border-b border-zinc-100 flex justify-between items-center">
+                    <h3 className="font-extrabold text-xl text-zinc-900 flex items-center gap-2"><Target className="text-blue-600"/> 赛历规划与能力评估</h3>
+                    <button onClick={() => setActiveModal(null)} className="text-zinc-400 hover:text-zinc-800 transition-colors bg-zinc-100 hover:bg-zinc-200 p-2 rounded-full"><X className="h-5 w-5" /></button>
+                </div>
+                
+                <div className="p-8 overflow-y-auto space-y-8 custom-scrollbar">
+                    
+                    {/* 1. 分项成绩与目标设定 */}
+                    <section>
+                        <h4 className="font-bold text-sm text-zinc-900 uppercase tracking-widest mb-4">五项拆解与提速目标</h4>
+                        <div className="bg-zinc-50 p-6 rounded-3xl border border-zinc-200/60 space-y-6">
+                            
+                            {/* 历史成绩拆解 */}
+                            <div>
+                                <div className="flex flex-col md:flex-row md:justify-between md:items-center mb-4 pb-3 border-b border-zinc-200/60">
+                                    <label className="text-sm font-bold text-zinc-700 mb-2 md:mb-0">1. 历史最好成绩 (PB)</label>
+                                    <select value={config.pbDistance} onChange={e => setConfig({...config, pbDistance: e.target.value})} className="border border-zinc-300 rounded-xl px-3 py-1.5 text-sm bg-white font-medium focus:border-blue-500 focus:outline-none">
+                                        {DISTANCES.map(d => <option key={d} value={d}>{d}</option>)}
+                                    </select>
+                                </div>
+                                <div className="grid grid-cols-5 gap-2">
+                                    <div className="flex flex-col items-center">
+                                        <span className="text-[10px] text-zinc-500 mb-1.5 font-medium">🏊 游泳(分)</span>
+                                        <input type="number" value={config.pbSplits.swim} onChange={e => handleSplitChange('pbSplits', 'swim', e.target.value)} className="w-full text-center border border-zinc-300 rounded-xl py-2 text-sm font-bold focus:outline-none focus:border-blue-500 transition-colors"/>
+                                    </div>
+                                    <div className="flex flex-col items-center">
+                                        <span className="text-[10px] text-zinc-400 mb-1.5 font-medium">🔄 T1(分)</span>
+                                        <input type="number" value={config.pbSplits.t1} onChange={e => handleSplitChange('pbSplits', 't1', e.target.value)} className="w-full text-center border border-zinc-200 bg-zinc-100 rounded-xl py-2 text-sm font-bold focus:outline-none focus:border-blue-500 transition-colors"/>
+                                    </div>
+                                    <div className="flex flex-col items-center">
+                                        <span className="text-[10px] text-zinc-500 mb-1.5 font-medium">🚴 骑行(分)</span>
+                                        <input type="number" value={config.pbSplits.bike} onChange={e => handleSplitChange('pbSplits', 'bike', e.target.value)} className="w-full text-center border border-zinc-300 rounded-xl py-2 text-sm font-bold focus:outline-none focus:border-blue-500 transition-colors"/>
+                                    </div>
+                                    <div className="flex flex-col items-center">
+                                        <span className="text-[10px] text-zinc-400 mb-1.5 font-medium">🔄 T2(分)</span>
+                                        <input type="number" value={config.pbSplits.t2} onChange={e => handleSplitChange('pbSplits', 't2', e.target.value)} className="w-full text-center border border-zinc-200 bg-zinc-100 rounded-xl py-2 text-sm font-bold focus:outline-none focus:border-blue-500 transition-colors"/>
+                                    </div>
+                                    <div className="flex flex-col items-center">
+                                        <span className="text-[10px] text-zinc-500 mb-1.5 font-medium">🏃 跑步(分)</span>
+                                        <input type="number" value={config.pbSplits.run} onChange={e => handleSplitChange('pbSplits', 'run', e.target.value)} className="w-full text-center border border-zinc-300 rounded-xl py-2 text-sm font-bold focus:outline-none focus:border-blue-500 transition-colors"/>
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* 本次目标拆解 */}
+                            <div>
+                                <div className="flex flex-col md:flex-row md:justify-between md:items-center mb-4 pb-3 border-b border-blue-100">
+                                    <label className="text-sm font-bold text-blue-700 mb-2 md:mb-0">2. 本次A级赛目标</label>
+                                    <div className="flex gap-2">
+                                        <select value={config.goalDistance} onChange={e => setConfig({...config, goalDistance: e.target.value})} className="border border-blue-200 rounded-xl px-3 py-1.5 text-sm bg-blue-50/50 font-medium text-blue-800 focus:outline-none focus:border-blue-500">
+                                            {DISTANCES.map(d => <option key={d} value={d}>{d}</option>)}
+                                        </select>
+                                        <select value={config.goalType} onChange={e => setConfig({...config, goalType: e.target.value})} className="border border-blue-200 rounded-xl px-3 py-1.5 text-sm bg-white font-bold text-blue-700 focus:outline-none focus:border-blue-500 shadow-sm">
+                                            <option value="time">按项目提速 (PB)</option>
+                                            <option value="cutoff">挑战压线/关门</option>
+                                            <option value="finish">顺利完赛即可</option>
+                                        </select>
+                                    </div>
+                                </div>
+                                
+                                {config.goalType === 'time' && (
+                                    <div className="grid grid-cols-5 gap-2">
+                                        <div className="flex flex-col items-center">
+                                            <input type="number" value={config.goalSplits.swim} onChange={e => handleSplitChange('goalSplits', 'swim', e.target.value)} className="w-full text-center border border-blue-300 bg-white rounded-xl py-2 text-sm font-black text-blue-700 focus:outline-none focus:border-blue-500 shadow-sm transition-colors"/>
+                                        </div>
+                                        <div className="flex flex-col items-center">
+                                            <input type="number" value={config.goalSplits.t1} onChange={e => handleSplitChange('goalSplits', 't1', e.target.value)} className="w-full text-center border border-blue-200 bg-blue-50/50 rounded-xl py-2 text-sm font-bold text-blue-700 focus:outline-none focus:border-blue-500 transition-colors"/>
+                                        </div>
+                                        <div className="flex flex-col items-center">
+                                            <input type="number" value={config.goalSplits.bike} onChange={e => handleSplitChange('goalSplits', 'bike', e.target.value)} className="w-full text-center border border-blue-300 bg-white rounded-xl py-2 text-sm font-black text-blue-700 focus:outline-none focus:border-blue-500 shadow-sm transition-colors"/>
+                                        </div>
+                                        <div className="flex flex-col items-center">
+                                            <input type="number" value={config.goalSplits.t2} onChange={e => handleSplitChange('goalSplits', 't2', e.target.value)} className="w-full text-center border border-blue-200 bg-blue-50/50 rounded-xl py-2 text-sm font-bold text-blue-700 focus:outline-none focus:border-blue-500 transition-colors"/>
+                                        </div>
+                                        <div className="flex flex-col items-center">
+                                            <input type="number" value={config.goalSplits.run} onChange={e => handleSplitChange('goalSplits', 'run', e.target.value)} className="w-full text-center border border-blue-300 bg-white rounded-xl py-2 text-sm font-black text-blue-700 focus:outline-none focus:border-blue-500 shadow-sm transition-colors"/>
+                                        </div>
+                                    </div>
+                                )}
+                                {config.goalType === 'finish' && (
+                                    <div className="text-center text-sm font-bold text-blue-600 py-3 bg-blue-50/50 rounded-xl border border-blue-100">
+                                        以享受赛道为主，已关闭分项时间压力考核。
+                                    </div>
+                                )}
+                                {config.goalType === 'cutoff' && (
+                                    <div className="text-center text-sm font-bold text-rose-600 py-3 bg-rose-50/50 rounded-xl border border-rose-100">
+                                        挑战关门时间！重点关注各赛段硬性关门节点，切忌在换项区过多停留。
+                                    </div>
+                                )}
+                            </div>
+
+                            {/* 基本资料折叠区 */}
+                            <details className="mt-4 text-sm group">
+                                <summary className="text-zinc-500 cursor-pointer font-bold hover:text-zinc-800 transition-colors flex items-center gap-1">
+                                    <Settings className="h-4 w-4"/> 基础资料设定 (性别/年龄组)
+                                </summary>
+                                <div className="grid grid-cols-2 gap-4 mt-4 pt-4 border-t border-zinc-200/60">
+                                    <div>
+                                        <label className="block text-xs font-bold text-zinc-600 mb-2 uppercase tracking-wider">性别组别</label>
+                                        <select value={config.gender} onChange={e => setConfig({...config, gender: e.target.value})} className="w-full border border-zinc-300 rounded-xl px-3 py-2 text-sm bg-white font-medium focus:outline-none focus:border-blue-500">
+                                            <option value="M">男子组 (Male)</option>
+                                            <option value="F">女子组 (Female)</option>
+                                        </select>
+                                    </div>
+                                    <div>
+                                        <label className="block text-xs font-bold text-zinc-600 mb-2 uppercase tracking-wider">年龄组别</label>
+                                        <select value={config.ageGroup} onChange={e => setConfig({...config, ageGroup: e.target.value})} className="w-full border border-zinc-300 rounded-xl px-3 py-2 text-sm bg-white font-medium focus:outline-none focus:border-blue-500">
+                                            {AGE_GROUPS.map(ag => <option key={ag} value={ag}>{ag}</option>)}
+                                        </select>
+                                    </div>
+                                </div>
+                            </details>
+                        </div>
+                    </section>
+
+                    {/* 2. 年度赛历管理 */}
+                    <section>
+                        <div className="flex justify-between items-center mb-4">
+                            <h4 className="font-bold text-sm text-zinc-900 uppercase tracking-widest">我的赛事日程表</h4>
+                            <button onClick={handleAddRace} className="text-xs font-bold bg-zinc-900 text-white px-4 py-2 rounded-xl hover:bg-zinc-800 transition shadow-md">+ 添加比赛</button>
+                        </div>
+                        
+                        <div className="space-y-4">
+                            {config.races.map((race, index) => {
+                                const isCustom = race.isCustomMode || (!PREDEFINED_RACES.some(pr => pr.name === race.name) && race.name !== '');
+                                return (
+                                <div key={race.id} className="bg-white border border-zinc-200/80 rounded-3xl p-5 shadow-sm relative group hover:border-zinc-300 transition-colors">
+                                    {config.races.length > 1 && (
+                                        <button onClick={() => handleRemoveRace(race.id)} className="absolute -top-3 -right-3 bg-white text-zinc-400 p-2 rounded-full border border-zinc-200 hover:bg-rose-50 hover:text-rose-600 hover:border-rose-200 transition-all shadow-sm z-10 opacity-0 group-hover:opacity-100">
+                                            <Trash2 className="h-4 w-4" />
+                                        </button>
+                                    )}
+                                    <div className="grid grid-cols-1 md:grid-cols-12 gap-4">
+                                        <div className="md:col-span-5 flex flex-col">
+                                            <label className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider mb-1.5">赛事选择/名称</label>
+                                            <select 
+                                                value={isCustom ? '自定义' : race.name} 
+                                                onChange={e => {
+                                                    if (e.target.value === '自定义') { 
+                                                        const newRaces = config.races.map(r => r.id === race.id ? { ...r, name: '', isCustomMode: true } : r);
+                                                        setConfig({ ...config, races: newRaces });
+                                                    } else { 
+                                                        const predefined = PREDEFINED_RACES.find(pr => pr.name === e.target.value);
+                                                        const newRaces = config.races.map(r => r.id === race.id ? { ...r, name: e.target.value, date: predefined?.estDate || r.date, isCustomMode: false } : r);
+                                                        setConfig({ ...config, races: newRaces });
+                                                    }
+                                                }} 
+                                                className="w-full border border-zinc-300 rounded-xl px-3 py-2 text-sm font-bold text-zinc-800 mb-2 bg-zinc-50 focus:bg-white focus:border-blue-500 focus:outline-none transition-colors"
+                                            >
+                                                <option value="" disabled>请选择赛事...</option>
+                                                {PREDEFINED_RACES.filter(pr => pr.name !== "其他自定义赛事...").map(pr => (
+                                                    <option key={pr.name} value={pr.name}>{pr.name}</option>
+                                                ))}
+                                                <option value="自定义">➕ 其他自定义赛事...</option>
+                                            </select>
+                                            {isCustom && (
+                                                <input type="text" value={race.name} onChange={e => handleRaceChange(race.id, 'name', e.target.value)} className="w-full border border-blue-300 bg-blue-50 rounded-xl px-3 py-2 text-sm font-bold text-blue-900 focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="输入自定义赛事名称" />
+                                            )}
+                                        </div>
+                                        <div className="md:col-span-3 flex flex-col">
+                                            <label className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider mb-1.5">比赛日期</label>
+                                            <input type="date" value={race.date} onChange={e => handleRaceChange(race.id, 'date', e.target.value)} className="w-full border border-zinc-300 rounded-xl px-3 py-2 text-sm font-bold text-zinc-700 bg-white focus:border-blue-500 focus:outline-none" />
+                                        </div>
+                                        <div className="md:col-span-2 flex flex-col">
+                                            <label className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider mb-1.5">距离</label>
+                                            <select value={race.distance} onChange={e => handleRaceChange(race.id, 'distance', e.target.value)} className="w-full border border-zinc-300 rounded-xl px-2 py-2 text-xs font-bold text-zinc-700 bg-white focus:border-blue-500 focus:outline-none">
+                                                {DISTANCES.map(d => <option key={d} value={d}>{d}</option>)}
+                                            </select>
+                                        </div>
+                                        <div className="md:col-span-2 flex flex-col">
+                                            <label className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider mb-1.5">优先级</label>
+                                            <select value={race.priority} onChange={e => handleRaceChange(race.id, 'priority', e.target.value)} className={`w-full border rounded-xl px-2 py-2 text-xs font-black focus:outline-none focus:ring-2 focus:ring-offset-1 ${race.priority==='A'?'bg-rose-50 text-rose-700 border-rose-200 focus:ring-rose-500':(race.priority==='B'?'bg-blue-50 text-blue-700 border-blue-200 focus:ring-blue-500':'bg-zinc-100 text-zinc-700 border-zinc-300 focus:ring-zinc-500')}`}>
+                                                <option value="A">A级 (重点)</option>
+                                                <option value="B">B级 (热身)</option>
+                                                <option value="C">C级 (练习)</option>
+                                            </select>
+                                        </div>
+                                    </div>
+                                </div>
+                                );
+                            })}
+                        </div>
+                    </section>
+                </div>
+                <div className="p-6 border-t border-zinc-100 flex justify-end gap-4 bg-zinc-50 rounded-b-[2rem]">
+                    <button onClick={() => setActiveModal(null)} className="px-6 py-3 text-sm font-bold text-zinc-500 hover:text-zinc-800 hover:bg-zinc-200 rounded-xl transition-colors">取消</button>
+                    <button onClick={saveConfig} className="bg-zinc-900 hover:bg-zinc-800 text-white px-8 py-3 rounded-xl text-sm font-extrabold transition-all shadow-lg hover:shadow-xl hover:-translate-y-0.5">保存赛历与目标</button>
+                </div>
+            </div>
+        </div>
+      )}
+
+      {/* Strava 授权与设置一体化弹窗 */}
+      {activeModal === 'strava_setup' && (
+        <div className="fixed inset-0 bg-zinc-900/60 backdrop-blur-md flex items-center justify-center z-50 p-4">
+            <div className="bg-white rounded-[2rem] shadow-2xl w-full max-w-lg flex flex-col border border-zinc-200">
+                <div className="flex justify-between items-center p-6 border-b border-zinc-100">
+                    <h3 className="font-bold text-xl text-zinc-900 flex items-center gap-2">
+                        <span className="text-[#FC4C02] text-2xl font-black italic tracking-tighter">STRAVA</span> 接口配置
+                    </h3>
+                    <button onClick={() => setActiveModal(null)} className="text-zinc-400 hover:text-zinc-800 transition-colors bg-zinc-100 hover:bg-zinc-200 p-2 rounded-full">
+                        <X className="h-5 w-5" />
+                    </button>
+                </div>
+                
+                <div className="p-8 space-y-6">
+                    <div className="bg-orange-50/50 text-orange-900 p-5 rounded-2xl border border-orange-200/60 leading-relaxed">
+                        <strong className="text-sm font-bold flex items-center gap-2 mb-2"><Activity className="h-4 w-4 text-[#FC4C02]"/> 如何获取开发者密钥？</strong>
+                        <ol className="list-decimal pl-5 text-xs text-orange-800/80 space-y-1.5 font-medium">
+                            <li>请先在浏览器登录 Strava，然后访问 <a href="https://www.strava.com/settings/api" target="_blank" className="text-[#FC4C02] font-bold underline hover:text-orange-700">Strava API 设置</a>。</li>
+                            <li>若首次使用需创建应用，请将 <b>Callback Domain</b> 填写为本网页域名：<code className="bg-white px-1.5 py-0.5 rounded shadow-sm border border-orange-100 font-mono text-[10px] text-orange-900">{window.location.hostname || 'localhost'}</code></li>
+                            <li>找到并填写下方的 Client ID 和 Client Secret。</li>
+                        </ol>
+                    </div>
+                    
+                    <div className="space-y-5">
+                        <div>
+                            <label className="block text-xs font-bold text-zinc-500 uppercase tracking-wider mb-2">Client ID (纯数字)</label>
+                            <input type="text" value={config.clientId} onChange={e => setConfig({...config, clientId: e.target.value.trim()})} className="w-full border border-zinc-300 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-[#FC4C02] font-mono font-bold text-zinc-800 bg-zinc-50 focus:bg-white transition-colors" placeholder="例如：123456" />
+                        </div>
+                        <div>
+                            <label className="block text-xs font-bold text-zinc-500 uppercase tracking-wider mb-2">Client Secret (长串字母数字)</label>
+                            <input type="password" value={config.clientSecret} onChange={e => setConfig({...config, clientSecret: e.target.value.trim()})} className="w-full border border-zinc-300 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-[#FC4C02] font-mono font-bold text-zinc-800 bg-zinc-50 focus:bg-white transition-colors" placeholder="请在 Strava 页面点击 Show 之后复制" />
+                        </div>
+                    </div>
+                </div>
+                
+                <div className="p-6 border-t border-zinc-100 flex justify-end gap-4 bg-zinc-50 rounded-b-[2rem]">
+                    <button onClick={() => setActiveModal(null)} className="px-6 py-3 text-sm font-bold text-zinc-500 hover:text-zinc-800 hover:bg-zinc-200 rounded-xl transition-colors">取消</button>
+                    <button onClick={initiateStravaAuth} className="bg-[#FC4C02] hover:bg-[#E34402] text-white px-8 py-3 rounded-xl text-sm font-extrabold transition-all shadow-lg hover:shadow-xl hover:-translate-y-0.5 flex items-center gap-2">
+                        保存并前往授权 ↗
+                    </button>
+                </div>
+            </div>
+        </div>
+      )}
+
+      {/* Tailwind CSS 隐藏滚动条补丁 */}
+      <style dangerouslySetInnerHTML={{__html: `
+        .custom-scrollbar::-webkit-scrollbar { width: 6px; }
+        .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background-color: #e4e4e7; border-radius: 20px; }
+        .custom-scrollbar:hover::-webkit-scrollbar-thumb { background-color: #d4d4d8; }
+      `}} />
+    </div>
+  );
+}
