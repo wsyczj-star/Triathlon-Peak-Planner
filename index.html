@@ -3,13 +3,19 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>铁三备赛与训练管理面板</title>
-    <!-- 引入 Tailwind CSS -->
+    <title>顶峰之旅 | 铁三训练看板</title>
+    <!-- PWA 配置：让网页可以像 App 一样添加到手机桌面 -->
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-title" content="顶峰之旅">
+    <meta name="application-name" content="顶峰之旅">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="theme-color" content="#18181b">
+    
+    <!-- 引入 Tailwind CSS 和 React -->
     <script src="https://cdn.tailwindcss.com"></script>
-    <!-- 引入 React 和 ReactDOM -->
     <script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin></script>
     <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" crossorigin></script>
-    <!-- 引入 Babel 以解析 JSX -->
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
 </head>
 <body class="bg-[#F4F4F5] text-slate-800 selection:bg-[#FC4C02] selection:text-white">
@@ -18,13 +24,18 @@
     <script type="text/babel">
         const { useState, useEffect } = React;
 
-        // --- 内联 SVG 图标集合 (替代 lucide-react) ---
+        // ==========================================
+        // ⚠️ 极其重要：在这里填入你的 Strava Client ID
+        // 这是公开的 ID，放在前端是安全的（Secret 藏在后端的 api/strava-token.js 里）
+        // ==========================================
+        const MY_STRAVA_CLIENT_ID = '请在这里填入你的纯数字ID'; 
+
+        // --- 内联 SVG 图标集合 ---
         const IconActivity = ({className="w-4 h-4"}) => <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"></polyline></svg>;
         const IconSettings = ({className="w-4 h-4"}) => <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>;
         const IconTrophy = ({className="w-16 h-16"}) => <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6"></path><path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18"></path><path d="M4 22h16"></path><path d="M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20.24 7 22"></path><path d="M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20.24 17 22"></path><path d="M18 2H6v7a6 6 0 0 0 12 0V2Z"></path></svg>;
         const IconTrash = ({className="w-4 h-4"}) => <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 6h18"></path><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"></path><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"></path></svg>;
         const IconTarget = ({className="w-5 h-5"}) => <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"></circle><circle cx="12" cy="12" r="6"></circle><circle cx="12" cy="12" r="2"></circle></svg>;
-        // 替换为更有力量感的山峰水印
         const IconMountain = ({className="w-4 h-4"}) => <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m8 3 4 8 5-5 5 15H2L8 3z"></path></svg>;
         const IconZap = ({className="w-4 h-4"}) => <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon></svg>;
         const IconCalendar = ({className="w-4 h-4"}) => <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg>;
@@ -37,7 +48,7 @@
         const IconX = ({className="w-4 h-4"}) => <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>;
         const IconLoader = ({className="w-4 h-4"}) => <svg className={`${className} animate-spin`} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="2" x2="12" y2="6"></line><line x1="12" y1="18" x2="12" y2="22"></line><line x1="4.93" y1="4.93" x2="7.76" y2="7.76"></line><line x1="16.24" y1="16.24" x2="19.07" y2="19.07"></line><line x1="2" y1="12" x2="6" y2="12"></line><line x1="18" y1="12" x2="22" y2="12"></line><line x1="4.93" y1="19.07" x2="7.76" y2="16.24"></line><line x1="16.24" y1="7.76" x2="19.07" y2="4.93"></line></svg>;
 
-        // --- 预设数据字典 ---
+        // --- 数据字典 ---
         const PREDEFINED_RACES = [
             { name: "IRONMAN 70.3 上海崇明站 (万达体育)", estDate: "2026-05-25" },
             { name: "Challenge Taiwan 国际铁人三项赛·台东", estDate: "2026-04-26" },
@@ -53,23 +64,9 @@
             { name: "其他自定义赛事...", estDate: "" }
         ];
 
-        const AGE_GROUPS = [
-            "U19 (19岁以下)", "20-24", "25-29", "30-34", "35-39", "40-44", "45-49", "50-54", "55-59", "60-64", "65-69", "70+ (70岁以上)"
-        ];
-
-        const DISTANCES = [
-            "大铁 (226km)", "半程大铁/70.3 (113km)", "奥运标准距离 (51.5km)", "半程标铁/冲刺 (25.75km)"
-        ];
-
-        // 模拟近6周数据，用于展示趋势图
-        const MOCK_WEEKLY_TRENDS = [
-            { week: '5周前', planned: 8, actual: 8.5 },
-            { week: '4周前', planned: 9, actual: 7.5 },
-            { week: '3周前', planned: 10, actual: 10 },
-            { week: '2周前', planned: 11, actual: 9 },
-            { week: '上周', planned: 12, actual: 12.5 },
-            { week: '本周', planned: 13, actual: 11 },
-        ];
+        const AGE_GROUPS = ["U19 (19岁以下)", "20-24", "25-29", "30-34", "35-39", "40-44", "45-49", "50-54", "55-59", "60-64", "65-69", "70+ (70岁以上)"];
+        const DISTANCES = ["大铁 (226km)", "半程大铁/70.3 (113km)", "奥运标准距离 (51.5km)", "半程标铁/冲刺 (25.75km)"];
+        const MOCK_WEEKLY_TRENDS = [{ week: '5周前', planned: 8, actual: 8.5 }, { week: '4周前', planned: 9, actual: 7.5 }, { week: '3周前', planned: 10, actual: 10 }, { week: '2周前', planned: 11, actual: 9 }, { week: '上周', planned: 12, actual: 12.5 }, { week: '本周', planned: 13, actual: 11 }];
 
         // --- 辅助计算与格式化 ---
         const formatTime = (mins) => {
@@ -156,7 +153,7 @@
         const CustomTrendChart = ({ data }) => {
             const maxPlanned = Math.max(...data.map(d => d.planned)) || 1;
             const maxActual = Math.max(...data.map(d => d.actual)) || 1;
-            const maxVal = Math.max(maxPlanned, maxActual) * 1.1; // 留出10%顶部空间
+            const maxVal = Math.max(maxPlanned, maxActual) * 1.1; 
 
             return (
                 <div className="flex items-end gap-2 h-40 mt-6 pt-4 border-b border-zinc-100">
@@ -166,32 +163,25 @@
                         
                         return (
                             <div key={i} className="flex-1 flex flex-col justify-end items-center gap-2 group relative">
-                                {/* 悬浮 Tooltip */}
                                 <div className="absolute -top-12 opacity-0 group-hover:opacity-100 transition-opacity bg-zinc-800 text-white text-[10px] py-1 px-2 rounded-lg shadow-lg pointer-events-none z-10 w-max text-center">
                                     <div className="font-bold">{item.week}</div>
                                     <div>计划: {item.planned}h | 达成: {item.actual}h</div>
                                 </div>
-                                {/* 柱状图 */}
                                 <div className="w-full flex justify-center items-end gap-1 h-32 relative">
                                     <div className="w-4 bg-zinc-200 rounded-t-sm hover:bg-zinc-300 transition-colors" style={{ height: plannedHeight }} title={`计划: ${item.planned}h`}></div>
                                     <div className="w-4 bg-zinc-800 rounded-t-sm hover:bg-zinc-700 transition-colors" style={{ height: actualHeight }} title={`实际: ${item.actual}h`}></div>
                                     
-                                    {/* 折线图连线 (精准计算跨列距离与高度) */}
                                     {i < data.length - 1 && (
                                         <div className="absolute h-full pointer-events-none z-0" style={{ top: 0, left: '50%', width: 'calc(100% + 0.5rem)' }}>
                                             <svg className="w-full h-full overflow-visible">
                                                 <line 
-                                                    x1="0" 
-                                                    y1={`${100 - (item.actual / maxVal) * 100}%`} 
-                                                    x2="100%" 
-                                                    y2={`${100 - (data[i+1].actual / maxVal) * 100}%`} 
-                                                    stroke="#18181b" 
-                                                    strokeWidth="2.5"
+                                                    x1="0" y1={`${100 - (item.actual / maxVal) * 100}%`} 
+                                                    x2="100%" y2={`${100 - (data[i+1].actual / maxVal) * 100}%`} 
+                                                    stroke="#18181b" strokeWidth="2.5"
                                                 />
                                             </svg>
                                         </div>
                                     )}
-                                    {/* 折线图节点 */}
                                     <div className="absolute left-1/2 w-2.5 h-2.5 rounded-full bg-white border-2 border-[#18181b] -translate-x-1/2 z-10" style={{ bottom: actualHeight, marginBottom: '-5px' }}></div>
                                 </div>
                                 <div className="text-[10px] text-zinc-400 font-bold uppercase tracking-wider">{item.week}</div>
@@ -205,7 +195,7 @@
         // --- 主 App 组件 ---
         function App() {
             const [config, setConfig] = useState({
-                clientId: '', clientSecret: '', ageGroup: '30-34', gender: 'M',
+                ageGroup: '30-34', gender: 'M',
                 plannedSwim: 180, plannedBike: 360, plannedRun: 240, plannedSwimDist: 3.5, plannedBikeDist: 100, plannedRunDist: 30,
                 pbDistance: '奥运标准距离 (51.5km)', pbSplits: { swim: 40, t1: 5, bike: 80, t2: 5, run: 55 },
                 goalDistance: '奥运标准距离 (51.5km)', goalType: 'time', goalSplits: { swim: 35, t1: 3, bike: 75, t2: 3, run: 50 },
@@ -274,31 +264,32 @@
                 setConfig({ ...config, races: newRaces });
             };
 
-            // Strava 授权与网络请求
+            // ⚠️ 更新 1：一键发起授权，不再需要让用户填 API！
             const initiateStravaAuth = () => {
-                if (!config.clientId || !config.clientSecret) { alert("请填写完整的 Client ID 和 Client Secret！"); return; }
-                if (window.location.protocol === 'file:') { alert("不支持本地 file:// 访问，请部署至服务器或 GitHub Pages。"); return; }
-                localStorage.setItem('strava_planner_config', JSON.stringify(config));
+                if (!MY_STRAVA_CLIENT_ID || MY_STRAVA_CLIENT_ID.includes('填入')) {
+                    alert("开发者请注意：请在代码的 MY_STRAVA_CLIENT_ID 变量处填入你的 ID！");
+                    return;
+                }
                 const redirectUri = window.location.origin + window.location.pathname;
-                window.location.href = `https://www.strava.com/oauth/authorize?client_id=${config.clientId}&response_type=code&redirect_uri=${encodeURIComponent(redirectUri)}&approval_prompt=force&scope=activity:read_all`;
+                window.location.href = `https://www.strava.com/oauth/authorize?client_id=${MY_STRAVA_CLIENT_ID}&response_type=code&redirect_uri=${encodeURIComponent(redirectUri)}&approval_prompt=force&scope=activity:read_all`;
             };
 
+            // ⚠️ 更新 2：去请求你的 Vercel 后端，不再把 Secret 暴露在前端！
             const exchangeToken = async (code) => {
-                const savedConfig = JSON.parse(localStorage.getItem('strava_planner_config'));
-                if (!savedConfig || !savedConfig.clientSecret) return;
                 try {
-                    const proxyUrl = 'https://corsproxy.io/?' + encodeURIComponent('https://www.strava.com/oauth/token');
-                    const res = await fetch(proxyUrl, {
-                        method: 'POST', headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ client_id: savedConfig.clientId, client_secret: savedConfig.clientSecret, code: code, grant_type: 'authorization_code' })
+                    // 调用你部署在 Vercel 上的 /api/strava-token 接口
+                    const res = await fetch('/api/strava-token', {
+                        method: 'POST', 
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ code: code })
                     });
                     const data = await res.json();
                     window.history.replaceState({}, document.title, window.location.pathname);
                     if (data.access_token) {
                         localStorage.setItem('strava_access_token', data.access_token); localStorage.setItem('strava_refresh_token', data.refresh_token);
                         setAuthStatus('已连接'); fetchCurrentWeekData(); setActiveModal(null);
-                    } else { setAuthStatus('未连接'); setErrorMsg("授权失败：请检查 Client Secret。"); }
-                } catch (err) { setAuthStatus('未连接'); setErrorMsg("网络错误：" + err.message); }
+                    } else { setAuthStatus('未连接'); setErrorMsg("授权失败，请重试。"); }
+                } catch (err) { setAuthStatus('未连接'); setErrorMsg("网络错误，可能后端 API 未正确部署：" + err.message); }
             };
 
             const fetchCurrentWeekData = async () => {
@@ -408,20 +399,14 @@
                                 </button>
                                 
                                 <div className="flex items-stretch shadow-lg rounded-2xl overflow-hidden hover:shadow-xl transition-all">
+                                    {/* 这里移除了齿轮按钮，点击直接触发 Strava 登录流程 */}
                                     <button 
-                                        onClick={() => { if (authStatus === '已连接') { fetchCurrentWeekData(); } else { setActiveModal('strava_setup'); } }} 
+                                        onClick={() => { if (authStatus === '已连接') { fetchCurrentWeekData(); } else { initiateStravaAuth(); } }} 
                                         disabled={loading || authStatus === '授权中'}
                                         className={`px-6 py-3 text-sm font-bold text-white transition flex items-center gap-2 ${authStatus === '已连接' ? 'bg-zinc-900 hover:bg-zinc-800' : 'bg-[#FC4C02] hover:bg-[#E34402]'} disabled:opacity-70`}
                                     >
                                         {loading ? <IconLoader className="h-4 w-4" /> : (authStatus === '已连接' ? <IconActivity className="h-4 w-4 text-[#FC4C02]" /> : <IconZap className="h-4 w-4" />)}
                                         {loading ? '同步中...' : (authStatus === '已连接' ? 'Strava 已连接' : '连接 Strava 授权')}
-                                    </button>
-                                    <button 
-                                        onClick={() => setActiveModal('strava_setup')}
-                                        className={`px-3 py-3 text-white border-l transition flex items-center justify-center ${authStatus === '已连接' ? 'bg-zinc-900 hover:bg-zinc-800 border-zinc-700' : 'bg-[#FC4C02] hover:bg-[#E34402] border-[#E34402]'}`}
-                                        title="Strava 接口设置"
-                                    >
-                                        <IconSettings className="h-4 w-4" />
                                     </button>
                                 </div>
                             </div>
@@ -840,11 +825,6 @@
                                                             <IconTrash className="h-4 w-4" />
                                                         </button>
                                                     )}
-                                                    {race.priority === 'A' && (
-                                                        <div className="absolute -top-2.5 -left-2.5 bg-yellow-400 text-white p-1.5 rounded-full shadow-md z-10 animate-bounce" style={{animationDuration: '3s'}}>
-                                                            <IconTrophy className="h-3 w-3" />
-                                                        </div>
-                                                    )}
                                                     <div className="grid grid-cols-1 md:grid-cols-12 gap-4">
                                                         <div className="md:col-span-5 flex flex-col">
                                                             <label className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider mb-1.5">赛事选择/名称</label>
@@ -900,51 +880,6 @@
                                 <div className="p-6 border-t border-zinc-100 flex justify-end gap-4 bg-zinc-50 rounded-b-[2rem]">
                                     <button onClick={() => setActiveModal(null)} className="px-6 py-3 text-sm font-bold text-zinc-500 hover:text-zinc-800 hover:bg-zinc-200 rounded-xl transition-colors">取消</button>
                                     <button onClick={saveConfig} className="bg-zinc-900 hover:bg-zinc-800 text-white px-8 py-3 rounded-xl text-sm font-extrabold transition-all shadow-lg hover:shadow-xl hover:-translate-y-0.5">保存赛历与目标</button>
-                                </div>
-                            </div>
-                        </div>
-                    )}
-
-                    {/* Strava 授权与设置一体化弹窗 */}
-                    {activeModal === 'strava_setup' && (
-                        <div className="fixed inset-0 bg-zinc-900/60 backdrop-blur-md flex items-center justify-center z-50 p-4">
-                            <div className="bg-white rounded-[2rem] shadow-2xl w-full max-w-lg flex flex-col border border-zinc-200">
-                                <div className="flex justify-between items-center p-6 border-b border-zinc-100">
-                                    <h3 className="font-bold text-xl text-zinc-900 flex items-center gap-2">
-                                        <span className="text-[#FC4C02] text-2xl font-black italic tracking-tighter">STRAVA</span> 接口配置
-                                    </h3>
-                                    <button onClick={() => setActiveModal(null)} className="text-zinc-400 hover:text-zinc-800 transition-colors bg-zinc-100 hover:bg-zinc-200 p-2 rounded-full">
-                                        <IconX className="h-5 w-5" />
-                                    </button>
-                                </div>
-                                
-                                <div className="p-8 space-y-6">
-                                    <div className="bg-orange-50/50 text-orange-900 p-5 rounded-2xl border border-orange-200/60 leading-relaxed">
-                                        <strong className="text-sm font-bold flex items-center gap-2 mb-2"><IconActivity className="h-4 w-4 text-[#FC4C02]"/> 如何获取开发者密钥？</strong>
-                                        <ol className="list-decimal pl-5 text-xs text-orange-800/80 space-y-1.5 font-medium">
-                                            <li>请先登录 Strava，然后访问 <a href="https://www.strava.com/settings/api" target="_blank" className="text-[#FC4C02] font-bold underline hover:text-orange-700">Strava API 设置</a>。</li>
-                                            <li>创建应用时，<b>Callback Domain</b> 填写本网页域名：<code className="bg-white px-1.5 py-0.5 rounded shadow-sm border border-orange-100 font-mono text-[10px] text-orange-900">{window.location.hostname || 'localhost'}</code></li>
-                                            <li>找到并填写下方的 Client ID 和 Client Secret。</li>
-                                        </ol>
-                                    </div>
-                                    
-                                    <div className="space-y-5">
-                                        <div>
-                                            <label className="block text-xs font-bold text-zinc-500 uppercase tracking-wider mb-2">Client ID (纯数字)</label>
-                                            <input type="text" value={config.clientId} onChange={e => setConfig({...config, clientId: e.target.value.trim()})} className="w-full border border-zinc-300 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-[#FC4C02] font-mono font-bold text-zinc-800 bg-zinc-50 focus:bg-white transition-colors" placeholder="例如：123456" />
-                                        </div>
-                                        <div>
-                                            <label className="block text-xs font-bold text-zinc-500 uppercase tracking-wider mb-2">Client Secret (长串字母数字)</label>
-                                            <input type="password" value={config.clientSecret} onChange={e => setConfig({...config, clientSecret: e.target.value.trim()})} className="w-full border border-zinc-300 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-[#FC4C02] font-mono font-bold text-zinc-800 bg-zinc-50 focus:bg-white transition-colors" placeholder="请在 Strava 点击 Show 之后复制" />
-                                        </div>
-                                    </div>
-                                </div>
-                                
-                                <div className="p-6 border-t border-zinc-100 flex justify-end gap-4 bg-zinc-50 rounded-b-[2rem]">
-                                    <button onClick={() => setActiveModal(null)} className="px-6 py-3 text-sm font-bold text-zinc-500 hover:text-zinc-800 hover:bg-zinc-200 rounded-xl transition-colors">取消</button>
-                                    <button onClick={initiateStravaAuth} className="bg-[#FC4C02] hover:bg-[#E34402] text-white px-8 py-3 rounded-xl text-sm font-extrabold transition-all shadow-lg hover:shadow-xl hover:-translate-y-0.5 flex items-center gap-2">
-                                        保存并前往授权 ↗
-                                    </button>
                                 </div>
                             </div>
                         </div>
