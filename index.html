@@ -14,13 +14,21 @@
     <link rel="apple-touch-icon" href="icon.png">
     <link rel="icon" type="image/png" href="icon.png">
     
-    <!-- 引入 Tailwind CSS (CDN版本，已知警告但为极简部署保留) -->
+    <!-- 引入 Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
     
-    <!-- 【安全修复】引入 React 和 Babel，并添加了 SRI (Subresource Integrity) 完整性校验，防止供应链投毒 -->
+    <!-- 引入 React 和 Babel (带 SRI 校验) -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js" xintegrity="sha512-8Q6Y9XnEeuGXtZHKvIGaO/rJqRWeHh1zKfqS/XOMnIEa7eL/wT2N1X/1E9/H7L0X6jA0L+4hXU+QaaVekm7/w==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js" xintegrity="sha512-1hB0A1110qP1509D6uLXXe6p0z9xU+4G2Nof4kF9xVWeZ+p/9Gf1o1M4KGBQ0+eI1T1a3T5gP/xH/ZlW3sOQQ==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.3/babel.min.js" xintegrity="sha512-Ejmku1zOesE0doofuaA2E3of18iRz28K41T10yU2LzLdE2B6H5lKjI27A+kZz+zI/fC7XwK1tG9LgZ2o5Szw==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+
+    <!-- 自定义滚动条样式 -->
+    <style>
+        .custom-scrollbar::-webkit-scrollbar { width: 6px; }
+        .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background-color: #e4e4e7; border-radius: 20px; }
+        .custom-scrollbar:hover::-webkit-scrollbar-thumb { background-color: #d4d4d8; }
+    </style>
 </head>
 <body class="bg-[#F4F4F5] text-slate-800 selection:bg-[#FC4C02] selection:text-white">
     <div id="root"></div>
@@ -29,7 +37,7 @@
         const { useState, useEffect } = React;
 
         // ==========================================
-        // ⚠️ 极其重要：在这里填入你的 Strava Client ID
+        // ⚠️ 极其重要：在这里填入你的 Strava Client ID (公开的 ID，放在前端是安全的)
         // ==========================================
         const MY_STRAVA_CLIENT_ID = '225927'; 
 
@@ -121,6 +129,12 @@
             ];
         };
 
+        // --- 辅助映射 AI 返回的样式 ---
+        const mapAIStyle = (styleType) => {
+            const styles = { rest: "bg-zinc-50 text-zinc-500 border-zinc-200", swim: "bg-cyan-50 text-cyan-700 border-cyan-200", bike: "bg-emerald-50 text-emerald-700 border-emerald-200", run:  "bg-orange-50 text-[#FC4C02] border-orange-200", brick: "bg-purple-50 text-purple-700 border-purple-200", race: "bg-rose-500 text-white border-rose-600" };
+            return styles[styleType] || styles.rest;
+        };
+
         const analyzeSplits = (pb, goal, goalType, pbDist, goalDist) => {
             if (goalType === 'finish') {
                 if (pbDist !== goalDist) return `跨距离体验！着重挑战全新的 ${goalDist.split(' ')[0]}。目标以享受赛道、安全完赛为主。重点：1. 适应长距离补给策略；2. 坚决执行舒适心率区间，切忌前半程上头冲刺；3. 倾听身体反馈。`;
@@ -142,8 +156,8 @@
             const maxPct = Math.max(pcts.swim, pcts.bike, pcts.run);
             let focusAreas = [];
 
-            if (diffs.swim > 0 && pcts.swim === maxPct) focusAreas.push("游泳提速要求最高，需增加水感训练及公开水域实战");
-            else if (diffs.bike > 0 && pcts.bike === maxPct) focusAreas.push("自行车是被寄予厚望的突破口，重点强化甜点区(Sweet Spot)巡航");
+            if (diffs.swim > 0 && pcts.swim === maxPct) focusAreas.push("游泳提速要求最高，需针对性增加水感训练及公开水域实战");
+            else if (diffs.bike > 0 && pcts.bike === maxPct) focusAreas.push("自行车是被寄予厚望的突破口，重点强化甜点区(Sweet Spot)巡航能力");
             else if (diffs.run > 0 && pcts.run === maxPct) focusAreas.push("跑步是本次提速的核心，需加强砖块训练(Brick)以适应疲劳");
             
             if ((diffs.t1 + diffs.t2) >= 3) focusAreas.push(`换项区硬挤出了 ${diffs.t1 + diffs.t2} 分钟，这是最容易拿到的免费时间，赛前务必反复演练流程`);
@@ -208,6 +222,10 @@
             const [weeklyTrends, setWeeklyTrends] = useState([]); 
             const [loading, setLoading] = useState(false);
             const [errorMsg, setErrorMsg] = useState('');
+            
+            // --- 真 AI 状态 ---
+            const [isGeneratingAI, setIsGeneratingAI] = useState(false);
+            const [realAIPlan, setRealAIPlan] = useState(null);
 
             useEffect(() => {
                 const savedConfigStr = localStorage.getItem('strava_planner_config');
@@ -226,8 +244,24 @@
 
                 const urlParams = new URLSearchParams(window.location.search);
                 const code = urlParams.get('code');
-                if (code) { setAuthStatus('授权中'); exchangeToken(code); } 
-                else { const token = localStorage.getItem('strava_access_token'); if (token) { setAuthStatus('已连接'); fetchCurrentWeekData(); } }
+                const state = urlParams.get('state');
+
+                if (code) { 
+                    // 【安全修复】检查 CSRF State 是否匹配
+                    const savedState = sessionStorage.getItem('strava_auth_state');
+                    if (!savedState || state !== savedState) {
+                        setAuthStatus('未连接');
+                        setErrorMsg("安全校验失败：可能的跨站请求伪造 (CSRF) 攻击。请重新发起授权。");
+                        window.history.replaceState({}, document.title, window.location.pathname); 
+                    } else {
+                        sessionStorage.removeItem('strava_auth_state');
+                        setAuthStatus('授权中'); 
+                        exchangeToken(code); 
+                    }
+                } else { 
+                    const token = localStorage.getItem('strava_access_token'); 
+                    if (token) { setAuthStatus('已连接'); fetchCurrentWeekData(); } 
+                }
             }, []);
 
             const saveConfig = () => {
@@ -265,13 +299,21 @@
                 setConfig({ ...config, races: newRaces });
             };
 
+            const generateRandomState = () => {
+                return Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
+            };
+
             const initiateStravaAuth = () => {
                 if (!MY_STRAVA_CLIENT_ID || MY_STRAVA_CLIENT_ID.includes('填入')) {
-                    alert("开发者请注意：请在代码的 MY_STRAVA_CLIENT_ID 变量处填入你的 ID！");
+                    setErrorMsg("开发者请注意：请在代码的 MY_STRAVA_CLIENT_ID 变量处填入你的真实 ID！");
                     return;
                 }
+                
+                const state = generateRandomState();
+                sessionStorage.setItem('strava_auth_state', state);
+
                 const redirectUri = window.location.origin + window.location.pathname;
-                window.location.href = `https://www.strava.com/oauth/authorize?client_id=${MY_STRAVA_CLIENT_ID}&response_type=code&redirect_uri=${encodeURIComponent(redirectUri)}&approval_prompt=force&scope=activity:read_all`;
+                window.location.href = `https://www.strava.com/oauth/authorize?client_id=${MY_STRAVA_CLIENT_ID}&response_type=code&redirect_uri=${encodeURIComponent(redirectUri)}&approval_prompt=force&scope=activity:read_all&state=${state}`;
             };
 
             const exchangeToken = async (code) => {
@@ -284,7 +326,8 @@
                     const data = await res.json();
                     window.history.replaceState({}, document.title, window.location.pathname);
                     if (data.access_token) {
-                        localStorage.setItem('strava_access_token', data.access_token); localStorage.setItem('strava_refresh_token', data.refresh_token);
+                        localStorage.setItem('strava_access_token', data.access_token); 
+                        localStorage.setItem('strava_refresh_token', data.refresh_token);
                         setAuthStatus('已连接'); fetchCurrentWeekData(); setActiveModal(null);
                     } else { setAuthStatus('未连接'); setErrorMsg("授权失败，请重试。"); }
                 } catch (err) { setAuthStatus('未连接'); setErrorMsg("网络错误，可能后端 API 未正确部署：" + err.message); }
@@ -353,6 +396,106 @@
                 setLoading(false);
             };
 
+            // --- 真 AI 生成引擎 (连接 Vercel 后端) ---
+            const generateRealAIPlan = async () => {
+                if (authStatus !== '已连接') {
+                    setErrorMsg("请先连接 Strava 获取真实训练数据，AI 才能精准评估！");
+                    return;
+                }
+                
+                setIsGeneratingAI(true);
+                setErrorMsg("");
+                
+                const today = new Date(); today.setHours(0, 0, 0, 0);
+                const upcomingRaces = config.races.filter(r => r.date && new Date(r.date) >= today).sort((a, b) => new Date(a.date) - new Date(b.date));
+                const nextRace = upcomingRaces.find(r => r.priority === 'A') || upcomingRaces[0];
+                const daysLeft = nextRace ? Math.ceil((new Date(nextRace.date) - today) / (1000 * 60 * 60 * 24)) : '未知';
+
+                const trendStr = weeklyTrends.map(t => `${t.week}: 实际完成 ${t.actual}小时`).join('; ');
+                const prompt = `你是一个专业的铁人三项教练。请根据以下运动员的数据，生成下周的动态训练计划。
+                
+                【运动员基础信息】
+                性别：${config.gender === 'M' ? '男' : '女'}
+                年龄组：${config.ageGroup}
+                近期各单项周均容量 (小时)：游泳 ${Math.round(activities.swimTime/60*10)/10}h, 骑行 ${Math.round(activities.bikeTime/60*10)/10}h, 跑步 ${Math.round(activities.runTime/60*10)/10}h
+                过去6周体能积累趋势 (运动时长)：${trendStr}
+                
+                【目标赛事】
+                赛事名称：${nextRace?.name || '未定'}
+                赛事距离：${nextRace?.distance || '未定'}
+                距离比赛还有：${daysLeft} 天
+                
+                【要求】
+                分析该运动员近期的训练容量是否在合理攀升、是否疲劳过度。结合距比赛的天数，决定下周的训练重心（如：继续加量、减量恢复、强化专项等），并输出一周（周一到周日）的详细训练计划。
+                如果过去几周容量极速飙升，务必安排恢复；如果停滞，合理增加负荷。
+                
+                严格按照提供的 JSON Schema 返回数据。`;
+
+                // 【核心修改】将请求发往我们自己极其安全的 Vercel 后端，不再暴露 API Key
+                const apiUrl = '/api/ai-coach';
+
+                try {
+                    const payload = {
+                        contents: [{ parts: [{ text: prompt }] }],
+                        systemInstruction: { parts: [{ text: "你必须严格返回合法的 JSON 对象，绝对不要包含任何 Markdown 格式符号如 ```json" }] },
+                        generationConfig: {
+                            responseMimeType: "application/json",
+                            responseSchema: {
+                                type: "OBJECT",
+                                properties: {
+                                    phaseAnalysis: { type: "STRING", description: "一句话分析当前的体能趋势和疲劳状态" },
+                                    focus: { type: "STRING", description: "本周训练的核心指导思想" },
+                                    plan: {
+                                        type: "ARRAY",
+                                        items: {
+                                            type: "OBJECT",
+                                            properties: {
+                                                day: { type: "STRING", description: "例如：周一" },
+                                                tag: { type: "STRING", description: "例如：🏊 阈值游 或 🛏️ 彻底休息" },
+                                                styleType: { type: "STRING", description: "必须是以下之一: rest, swim, bike, run, brick, race" },
+                                                text: { type: "STRING", description: "具体的训练内容和要求" }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    };
+
+                    const maxRetries = 5;
+                    const delays = [1000, 2000, 4000, 8000, 16000];
+                    let result = null;
+
+                    for (let i = 0; i < maxRetries; i++) {
+                        try {
+                            const response = await fetch(apiUrl, {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify(payload)
+                            });
+                            if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+                            result = await response.json();
+                            break; 
+                        } catch (error) {
+                            if (i === maxRetries - 1) throw error; 
+                            await new Promise(resolve => setTimeout(resolve, delays[i])); 
+                        }
+                    }
+                    
+                    // 【鲁棒性增强】无情剥离大模型偶尔抽风带上的 Markdown 标记
+                    let jsonText = result.candidates[0].content.parts[0].text;
+                    jsonText = jsonText.replace(/```json/g, '').replace(/```/g, '').trim();
+                    const parsedData = JSON.parse(jsonText);
+                    
+                    setRealAIPlan(parsedData);
+                } catch (err) {
+                    console.error(err);
+                    setErrorMsg("AI 分析生成失败，网络拥堵或接口限制，请稍后再试。");
+                } finally {
+                    setIsGeneratingAI(false);
+                }
+            };
+
             const today = new Date(); today.setHours(0, 0, 0, 0);
             const upcomingRaces = config.races.filter(r => r.date && new Date(r.date) >= today).sort((a, b) => new Date(a.date) - new Date(b.date));
             const pastRaces = config.races.filter(r => r.date && new Date(r.date) < today).sort((a, b) => new Date(b.date) - new Date(a.date));
@@ -363,7 +506,8 @@
             else if (pastRaces.length > 0) { nextPrimaryRace = pastRaces[0]; primaryDaysLeft = Math.ceil((today - new Date(nextPrimaryRace.date)) / (1000 * 60 * 60 * 24)); isPast = true; }
 
             const trainingAdvice = getTrainingPhaseAdvice(isPast ? -1 : primaryDaysLeft);
-            const weeklyPlan = generateWeeklyPlan(trainingAdvice.id, config.goalDistance);
+            const fallbackWeeklyPlan = generateWeeklyPlan(trainingAdvice.id, config.goalDistance);
+            const displayWeeklyPlan = realAIPlan ? realAIPlan.plan : fallbackWeeklyPlan;
 
             const pbTotal = Object.values(config.pbSplits).reduce((a,b)=> Number(a) + Number(b), 0);
             const goalTotal = Object.values(config.goalSplits).reduce((a,b)=> Number(a) + Number(b), 0);
@@ -523,23 +667,54 @@
                             <div className="flex flex-col md:flex-row md:justify-between md:items-center mb-6 gap-4">
                                 <div className="flex items-center gap-2">
                                     <IconCalendar className="h-5 w-5 text-zinc-400" />
-                                    <h2 className="text-lg font-extrabold text-zinc-800">AI 智能周课表参考</h2>
+                                    <h2 className="text-lg font-extrabold text-zinc-800">
+                                        {realAIPlan ? '🧠 动态专属周课表 (AI生成)' : 'AI 智能周课表参考 (模板)'}
+                                    </h2>
                                 </div>
-                                <span className="text-xs bg-indigo-50 text-indigo-600 px-4 py-1.5 rounded-full border border-indigo-100 font-bold uppercase tracking-wider">
-                                    自动适配: {trainingAdvice.phase.split('(')[0]} • {goalDistStr}
-                                </span>
+                                <div className="flex items-center gap-3">
+                                    {realAIPlan ? (
+                                        <span className="text-xs bg-indigo-50 text-indigo-700 px-4 py-1.5 rounded-full border border-indigo-200 font-bold uppercase flex items-center gap-1 shadow-sm">
+                                            <IconCheck className="w-3 h-3"/> 已根据近 6 周负荷定制
+                                        </span>
+                                    ) : (
+                                        <span className="text-xs bg-zinc-100 text-zinc-500 px-4 py-1.5 rounded-full border border-zinc-200 font-bold uppercase tracking-wider">
+                                            自动适配: {trainingAdvice.phase.split('(')[0]} • {goalDistStr}
+                                        </span>
+                                    )}
+                                    <button 
+                                        onClick={generateRealAIPlan} 
+                                        disabled={isGeneratingAI || authStatus !== '已连接'}
+                                        className="bg-indigo-600 hover:bg-indigo-700 disabled:bg-indigo-300 text-white text-xs font-bold px-4 py-2 rounded-xl transition-colors shadow-md flex items-center gap-2"
+                                    >
+                                        {isGeneratingAI ? <IconLoader className="h-4 w-4 text-white"/> : <IconZap className="h-4 w-4 text-yellow-300"/>}
+                                        {isGeneratingAI ? 'AI 分析中...' : '深度 AI 评估 & 生成'}
+                                    </button>
+                                </div>
                             </div>
                             
+                            {realAIPlan && (
+                                <div className="mb-6 bg-indigo-50/50 border border-indigo-100 rounded-2xl p-5">
+                                    <h4 className="text-sm font-black text-indigo-900 mb-2 flex items-center gap-2"><IconActivity className="w-4 h-4 text-indigo-600"/> AI 负荷评估与本周策略</h4>
+                                    <p className="text-sm text-indigo-800 mb-2"><strong>体能趋势：</strong>{realAIPlan.phaseAnalysis}</p>
+                                    <p className="text-sm text-indigo-800"><strong>核心要点：</strong>{realAIPlan.focus}</p>
+                                </div>
+                            )}
+
                             <div className="grid grid-cols-1 md:grid-cols-7 gap-3">
-                                {weeklyPlan.map(day => (
-                                    <div key={day.day} className={`border rounded-2xl p-4 flex flex-col ${day.style.split(' ')[0]} bg-opacity-40 transition-transform hover:-translate-y-1`}>
+                                {displayWeeklyPlan.map(day => {
+                                    const styleClass = realAIPlan ? mapAIStyle(day.styleType) : day.style;
+                                    return (
+                                    <div key={day.day} className={`border rounded-2xl p-4 flex flex-col ${styleClass.split(' ')[0]} bg-opacity-40 transition-transform hover:-translate-y-1`}>
                                         <div className="font-bold text-sm text-zinc-800 mb-3 border-b border-zinc-200/50 pb-2">{day.day}</div>
-                                        <div className={`text-[10px] font-bold px-2 py-1 rounded inline-block w-max mb-2 border ${day.style}`}>{day.tag}</div>
+                                        <div className={`text-[10px] font-bold px-2 py-1 rounded inline-block w-max mb-2 border ${styleClass}`}>{day.tag}</div>
                                         <p className="text-xs text-zinc-700 leading-relaxed font-medium">{day.text}</p>
                                     </div>
-                                ))}
+                                    )
+                                })}
                             </div>
-                            <p className="text-xs text-zinc-400 mt-5 text-center font-medium">注：此为基于大数据的通用结构模板。请根据个人疲劳度进行微调，汇总后填入下方的“每周目标”。</p>
+                            {!realAIPlan && (
+                                <p className="text-xs text-zinc-400 mt-5 text-center font-medium">注：当前为基于大数据的通用结构模板。点击右上角连接真实 Strava 数据后，即可使用深度 AI 生成动态定制课表。</p>
+                            )}
                         </div>
 
                         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -883,13 +1058,6 @@
                             </div>
                         </div>
                     )}
-
-                    <style dangerouslySetInnerHTML={{__html: `
-                        .custom-scrollbar::-webkit-scrollbar { width: 6px; }
-                        .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
-                        .custom-scrollbar::-webkit-scrollbar-thumb { background-color: #e4e4e7; border-radius: 20px; }
-                        .custom-scrollbar:hover::-webkit-scrollbar-thumb { background-color: #d4d4d8; }
-                    `}} />
                 </div>
             );
         }
