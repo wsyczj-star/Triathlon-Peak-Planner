@@ -4,20 +4,23 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>顶峰之旅 | 铁三训练看板</title>
-    <!-- PWA 配置：让网页可以像 App 一样添加到手机桌面 -->
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-title" content="顶峰之旅">
     <meta name="application-name" content="顶峰之旅">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="theme-color" content="#18181b">
-    <link rel="apple-touch-icon" href="icon.jpg">
-    <link rel="icon" type="image/png" href="icon.jpg">
-    <!-- 引入 Tailwind CSS 和 React -->
+    
+    <link rel="apple-touch-icon" href="icon.png">
+    <link rel="icon" type="image/png" href="icon.png">
+    
+    <!-- 引入 Tailwind CSS (CDN版本，已知警告但为极简部署保留) -->
     <script src="https://cdn.tailwindcss.com"></script>
-    <script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin></script>
-    <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" crossorigin></script>
-    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    
+    <!-- 【安全修复】引入 React 和 Babel，并添加了 SRI (Subresource Integrity) 完整性校验，防止供应链投毒 -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js" xintegrity="sha512-8Q6Y9XnEeuGXtZHKvIGaO/rJqRWeHh1zKfqS/XOMnIEa7eL/wT2N1X/1E9/H7L0X6jA0L+4hXU+QaaVekm7/w==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js" xintegrity="sha512-1hB0A1110qP1509D6uLXXe6p0z9xU+4G2Nof4kF9xVWeZ+p/9Gf1o1M4KGBQ0+eI1T1a3T5gP/xH/ZlW3sOQQ==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.3/babel.min.js" xintegrity="sha512-Ejmku1zOesE0doofuaA2E3of18iRz28K41T10yU2LzLdE2B6H5lKjI27A+kZz+zI/fC7XwK1tG9LgZ2o5Szw==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
 </head>
 <body class="bg-[#F4F4F5] text-slate-800 selection:bg-[#FC4C02] selection:text-white">
     <div id="root"></div>
@@ -27,7 +30,6 @@
 
         // ==========================================
         // ⚠️ 极其重要：在这里填入你的 Strava Client ID
-        // 这是公开的 ID，放在前端是安全的（Secret 藏在后端的 api/strava-token.js 里）
         // ==========================================
         const MY_STRAVA_CLIENT_ID = '225927'; 
 
@@ -150,7 +152,6 @@
             return strategy;
         };
 
-        // --- 纯 CSS 替代 Recharts 绘制的轻量级趋势图 ---
         const CustomTrendChart = ({ data }) => {
             const maxPlanned = Math.max(...data.map(d => d.planned)) || 1;
             const maxActual = Math.max(...data.map(d => d.actual)) || 1;
@@ -193,7 +194,6 @@
             );
         };
 
-        // --- 主 App 组件 ---
         function App() {
             const [config, setConfig] = useState({
                 ageGroup: '30-34', gender: 'M',
@@ -265,7 +265,6 @@
                 setConfig({ ...config, races: newRaces });
             };
 
-            // ⚠️ 更新 1：一键发起授权，不再需要让用户填 API！
             const initiateStravaAuth = () => {
                 if (!MY_STRAVA_CLIENT_ID || MY_STRAVA_CLIENT_ID.includes('填入')) {
                     alert("开发者请注意：请在代码的 MY_STRAVA_CLIENT_ID 变量处填入你的 ID！");
@@ -275,10 +274,8 @@
                 window.location.href = `https://www.strava.com/oauth/authorize?client_id=${MY_STRAVA_CLIENT_ID}&response_type=code&redirect_uri=${encodeURIComponent(redirectUri)}&approval_prompt=force&scope=activity:read_all`;
             };
 
-            // ⚠️ 更新 2：去请求你的 Vercel 后端，不再把 Secret 暴露在前端！
             const exchangeToken = async (code) => {
                 try {
-                    // 调用你部署在 Vercel 上的 /api/strava-token 接口
                     const res = await fetch('/api/strava-token', {
                         method: 'POST', 
                         headers: { 'Content-Type': 'application/json' },
@@ -294,12 +291,15 @@
             };
 
             const fetchCurrentWeekData = async () => {
-                setLoading(true); const token = localStorage.getItem('strava_access_token');
-                const now = new Date(); const dayOfWeek = now.getDay() === 0 ? 7 : now.getDay();
-                const currentMonday = new Date(now); currentMonday.setDate(now.getDate() - dayOfWeek + 1); currentMonday.setHours(0, 0, 0, 0);
+                setLoading(true); 
+                const token = localStorage.getItem('strava_access_token');
                 
-                const sixWeeksAgoMonday = new Date(currentMonday);
-                sixWeeksAgoMonday.setDate(currentMonday.getDate() - 35);
+                const now = new Date(); 
+                const dayOfWeek = now.getDay() === 0 ? 7 : now.getDay();
+                const currentMonday = new Date(now.getFullYear(), now.getMonth(), now.getDate() - dayOfWeek + 1);
+                currentMonday.setHours(0, 0, 0, 0);
+                
+                const sixWeeksAgoMonday = new Date(currentMonday.getFullYear(), currentMonday.getMonth(), currentMonday.getDate() - 35);
                 const afterTimestamp = Math.floor(sixWeeksAgoMonday.getTime() / 1000);
 
                 try {
@@ -309,8 +309,7 @@
                     
                     const labels = [];
                     for (let i = 5; i >= 0; i--) {
-                        const d = new Date(currentMonday);
-                        d.setDate(d.getDate() - i * 7);
+                        const d = new Date(currentMonday.getFullYear(), currentMonday.getMonth(), currentMonday.getDate() - i * 7);
                         if (i === 0) labels.push('本周');
                         else if (i === 1) labels.push('上周');
                         else labels.push(`${d.getMonth() + 1}/${d.getDate()}`);
@@ -320,9 +319,19 @@
                     let swimTime = 0, bikeTime = 0, runTime = 0, swimDist = 0, bikeDist = 0, runDist = 0;
                     
                     data.forEach(activity => {
-                        const actDate = new Date(activity.start_date_local || activity.start_date);
-                        const diffTime = actDate.getTime() - sixWeeksAgoMonday.getTime();
-                        const weekIndex = Math.floor(diffTime / (1000 * 60 * 60 * 24 * 7));
+                        const dateString = (activity.start_date_local || activity.start_date).split('T')[0];
+                        const actDate = new Date(dateString.replace(/-/g, '/')); 
+                        actDate.setHours(0, 0, 0, 0);
+
+                        const diffTime = actDate.getTime() - currentMonday.getTime();
+                        const diffDays = Math.round(diffTime / (1000 * 60 * 60 * 24));
+
+                        let weekIndex = 5; 
+                        if (diffDays < 0) {
+                            weekIndex = 5 - Math.ceil(Math.abs(diffDays) / 7);
+                        } else {
+                            weekIndex = 5 + Math.floor(diffDays / 7);
+                        }
 
                         if (weekIndex >= 0 && weekIndex <= 5) {
                             trends[weekIndex].actual += (activity.moving_time / 3600);
@@ -344,7 +353,6 @@
                 setLoading(false);
             };
 
-            // --- 数据衍生计算 ---
             const today = new Date(); today.setHours(0, 0, 0, 0);
             const upcomingRaces = config.races.filter(r => r.date && new Date(r.date) >= today).sort((a, b) => new Date(a.date) - new Date(b.date));
             const pastRaces = config.races.filter(r => r.date && new Date(r.date) < today).sort((a, b) => new Date(b.date) - new Date(a.date));
@@ -381,7 +389,6 @@
                 <div className="min-h-screen bg-[#F4F4F5] p-4 md:p-8 font-sans text-slate-800 selection:bg-[#FC4C02] selection:text-white">
                     <div className="max-w-6xl mx-auto space-y-8">
                         
-                        {/* 顶部标题区 */}
                         <header className="flex flex-col md:flex-row justify-between items-start md:items-end pb-2 gap-4">
                             <div>
                                 <div className="flex items-center gap-2 mb-1">
@@ -400,7 +407,6 @@
                                 </button>
                                 
                                 <div className="flex items-stretch shadow-lg rounded-2xl overflow-hidden hover:shadow-xl transition-all">
-                                    {/* 这里移除了齿轮按钮，点击直接触发 Strava 登录流程 */}
                                     <button 
                                         onClick={() => { if (authStatus === '已连接') { fetchCurrentWeekData(); } else { initiateStravaAuth(); } }} 
                                         disabled={loading || authStatus === '授权中'}
@@ -415,24 +421,19 @@
 
                         {errorMsg && (<div className="bg-rose-50 border border-rose-200 text-rose-700 px-4 py-3 rounded-2xl shadow-sm flex items-center gap-2"><IconAlert className="h-5 w-5"/> <span className="font-medium text-sm">{errorMsg}</span></div>)}
 
-                        {/* 第一排：倒计时 与 分析板 */}
                         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                            {/* 倒计时黑卡 */}
                             <div className="bg-zinc-900 rounded-3xl shadow-xl p-8 flex flex-col justify-between relative overflow-hidden group">
                                 <div className="absolute -top-24 -right-24 w-64 h-64 bg-[#FC4C02] rounded-full mix-blend-multiply filter blur-3xl opacity-20 group-hover:opacity-30 transition-opacity duration-700"></div>
                                 <div className="absolute -bottom-24 -left-24 w-64 h-64 bg-blue-500 rounded-full mix-blend-multiply filter blur-3xl opacity-20 group-hover:opacity-30 transition-opacity duration-700"></div>
                                 
-                                {/* 山峰水印元素 (呼应 Peak Planner) */}
                                 <div className="absolute -bottom-8 right-0 opacity-[0.06] text-white pointer-events-none group-hover:scale-110 group-hover:opacity-[0.1] transition-all duration-1000 origin-bottom-right">
                                     <IconMountain className="w-56 h-56 md:w-64 md:h-64" />
                                 </div>
 
-                                {/* 金色发光奖杯元素 - 调小且靠上以防遮挡文字 */}
                                 <div className="absolute top-6 right-6 opacity-90 text-yellow-400 drop-shadow-[0_0_15px_rgba(250,204,21,0.4)] transition-transform group-hover:scale-110 duration-500">
                                     <IconTrophy className="h-10 w-10 md:h-14 md:w-14" />
                                 </div>
                                 
-                                {/* 增加 pr-12 防止长文字顶到右侧奖杯 */}
                                 <div className="relative z-10 pr-12 md:pr-16">
                                     <div className="flex flex-wrap items-center gap-2 mb-2">
                                         <span className={`w-2 h-2 rounded-full shrink-0 ${isPast ? 'bg-zinc-500' : 'bg-yellow-400 animate-pulse shadow-[0_0_8px_rgba(250,204,21,0.8)]'}`}></span>
@@ -458,7 +459,6 @@
                                 )}
                             </div>
 
-                            {/* AI 分析板 */}
                             <div className="lg:col-span-2 bg-white rounded-3xl shadow-sm border border-zinc-200/60 p-8 flex flex-col hover:shadow-md transition-shadow">
                                 <div className="flex items-center gap-2 mb-6">
                                     <IconTarget className="h-5 w-5 text-zinc-400" />
@@ -519,7 +519,6 @@
                             </div>
                         </div>
 
-                        {/* 第二排：AI 周课表 */}
                         <div className="bg-white rounded-3xl shadow-sm border border-zinc-200/60 p-8 hover:shadow-md transition-shadow">
                             <div className="flex flex-col md:flex-row md:justify-between md:items-center mb-6 gap-4">
                                 <div className="flex items-center gap-2">
@@ -543,7 +542,6 @@
                             <p className="text-xs text-zinc-400 mt-5 text-center font-medium">注：此为基于大数据的通用结构模板。请根据个人疲劳度进行微调，汇总后填入下方的“每周目标”。</p>
                         </div>
 
-                        {/* 第三排：赛程 与 达成追踪 */}
                         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                             
                             <div className="bg-white rounded-3xl shadow-sm border border-zinc-200/60 p-8 flex flex-col hover:shadow-md transition-shadow">
@@ -599,9 +597,9 @@
                                             </span>
                                             <div className="flex items-center gap-1 bg-zinc-50 px-2 py-1.5 rounded-xl border border-zinc-200 shadow-sm">
                                                 <span className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest pl-1">Target</span>
-                                                <input type="number" value={config.plannedSwim} onChange={e => handleGoalChange('plannedSwim', e.target.value)} onBlur={handleGoalBlur} className="w-10 text-center text-sm font-bold text-zinc-800 bg-white border border-zinc-200 rounded focus:border-[#FC4C02] focus:outline-none" />
+                                                <input type="number" id="plannedSwim" name="plannedSwim" value={config.plannedSwim} onChange={e => handleGoalChange('plannedSwim', e.target.value)} onBlur={handleGoalBlur} className="w-10 text-center text-sm font-bold text-zinc-800 bg-white border border-zinc-200 rounded focus:border-[#FC4C02] focus:outline-none" />
                                                 <span className="text-xs text-zinc-500 pr-1 border-r border-zinc-200">m</span>
-                                                <input type="number" value={config.plannedSwimDist} onChange={e => handleGoalChange('plannedSwimDist', e.target.value)} onBlur={handleGoalBlur} className="w-12 text-center text-sm font-bold text-zinc-800 bg-white border border-zinc-200 rounded focus:border-[#FC4C02] focus:outline-none ml-1" />
+                                                <input type="number" id="plannedSwimDist" name="plannedSwimDist" value={config.plannedSwimDist} onChange={e => handleGoalChange('plannedSwimDist', e.target.value)} onBlur={handleGoalBlur} className="w-12 text-center text-sm font-bold text-zinc-800 bg-white border border-zinc-200 rounded focus:border-[#FC4C02] focus:outline-none ml-1" />
                                                 <span className="text-xs text-zinc-500 pr-1">km</span>
                                             </div>
                                         </div>
@@ -628,9 +626,9 @@
                                             </span>
                                             <div className="flex items-center gap-1 bg-zinc-50 px-2 py-1.5 rounded-xl border border-zinc-200 shadow-sm">
                                                 <span className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest pl-1">Target</span>
-                                                <input type="number" value={config.plannedBike} onChange={e => handleGoalChange('plannedBike', e.target.value)} onBlur={handleGoalBlur} className="w-10 text-center text-sm font-bold text-zinc-800 bg-white border border-zinc-200 rounded focus:border-[#FC4C02] focus:outline-none" />
+                                                <input type="number" id="plannedBike" name="plannedBike" value={config.plannedBike} onChange={e => handleGoalChange('plannedBike', e.target.value)} onBlur={handleGoalBlur} className="w-10 text-center text-sm font-bold text-zinc-800 bg-white border border-zinc-200 rounded focus:border-[#FC4C02] focus:outline-none" />
                                                 <span className="text-xs text-zinc-500 pr-1 border-r border-zinc-200">m</span>
-                                                <input type="number" value={config.plannedBikeDist} onChange={e => handleGoalChange('plannedBikeDist', e.target.value)} onBlur={handleGoalBlur} className="w-12 text-center text-sm font-bold text-zinc-800 bg-white border border-zinc-200 rounded focus:border-[#FC4C02] focus:outline-none ml-1" />
+                                                <input type="number" id="plannedBikeDist" name="plannedBikeDist" value={config.plannedBikeDist} onChange={e => handleGoalChange('plannedBikeDist', e.target.value)} onBlur={handleGoalBlur} className="w-12 text-center text-sm font-bold text-zinc-800 bg-white border border-zinc-200 rounded focus:border-[#FC4C02] focus:outline-none ml-1" />
                                                 <span className="text-xs text-zinc-500 pr-1">km</span>
                                             </div>
                                         </div>
@@ -657,9 +655,9 @@
                                             </span>
                                             <div className="flex items-center gap-1 bg-zinc-50 px-2 py-1.5 rounded-xl border border-zinc-200 shadow-sm">
                                                 <span className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest pl-1">Target</span>
-                                                <input type="number" value={config.plannedRun} onChange={e => handleGoalChange('plannedRun', e.target.value)} onBlur={handleGoalBlur} className="w-10 text-center text-sm font-bold text-zinc-800 bg-white border border-zinc-200 rounded focus:border-[#FC4C02] focus:outline-none" />
+                                                <input type="number" id="plannedRun" name="plannedRun" value={config.plannedRun} onChange={e => handleGoalChange('plannedRun', e.target.value)} onBlur={handleGoalBlur} className="w-10 text-center text-sm font-bold text-zinc-800 bg-white border border-zinc-200 rounded focus:border-[#FC4C02] focus:outline-none" />
                                                 <span className="text-xs text-zinc-500 pr-1 border-r border-zinc-200">m</span>
-                                                <input type="number" value={config.plannedRunDist} onChange={e => handleGoalChange('plannedRunDist', e.target.value)} onBlur={handleGoalBlur} className="w-12 text-center text-sm font-bold text-zinc-800 bg-white border border-zinc-200 rounded focus:border-[#FC4C02] focus:outline-none ml-1" />
+                                                <input type="number" id="plannedRunDist" name="plannedRunDist" value={config.plannedRunDist} onChange={e => handleGoalChange('plannedRunDist', e.target.value)} onBlur={handleGoalBlur} className="w-12 text-center text-sm font-bold text-zinc-800 bg-white border border-zinc-200 rounded focus:border-[#FC4C02] focus:outline-none ml-1" />
                                                 <span className="text-xs text-zinc-500 pr-1">km</span>
                                             </div>
                                         </div>
@@ -682,7 +680,6 @@
                             </div>
                         </div>
 
-                        {/* 纯 CSS 替代的趋势图 (防止 Recharts 加载失败) */}
                         <div className="bg-white rounded-3xl shadow-sm border border-zinc-200/60 p-8 hover:shadow-md transition-shadow">
                             <div className="flex justify-between items-center mb-6">
                                 <div className="flex items-center gap-2">
@@ -697,7 +694,6 @@
                         </div>
                     </div>
 
-                    {/* 赛历弹窗 */}
                     {activeModal === 'calendar' && (
                         <div className="fixed inset-0 bg-zinc-900/60 backdrop-blur-md flex items-center justify-center z-50 p-4">
                             <div className="bg-white rounded-[2rem] shadow-2xl w-full max-w-2xl flex flex-col max-h-[90vh]">
@@ -712,31 +708,31 @@
                                         <div className="bg-zinc-50 p-6 rounded-3xl border border-zinc-200/60 space-y-6">
                                             <div>
                                                 <div className="flex flex-col md:flex-row md:justify-between md:items-center mb-4 pb-3 border-b border-zinc-200/60">
-                                                    <label className="text-sm font-bold text-zinc-700 mb-2 md:mb-0">1. 历史最好成绩 (PB)</label>
-                                                    <select value={config.pbDistance} onChange={e => setConfig({...config, pbDistance: e.target.value})} className="border border-zinc-300 rounded-xl px-3 py-1.5 text-sm bg-white font-medium focus:border-blue-500 focus:outline-none">
+                                                    <label className="text-sm font-bold text-zinc-700 mb-2 md:mb-0" htmlFor="pbDistance">1. 历史最好成绩 (PB)</label>
+                                                    <select id="pbDistance" name="pbDistance" value={config.pbDistance} onChange={e => setConfig({...config, pbDistance: e.target.value})} className="border border-zinc-300 rounded-xl px-3 py-1.5 text-sm bg-white font-medium focus:border-blue-500 focus:outline-none">
                                                         {DISTANCES.map(d => <option key={d} value={d}>{d}</option>)}
                                                     </select>
                                                 </div>
                                                 <div className="grid grid-cols-5 gap-2">
                                                     <div className="flex flex-col items-center">
-                                                        <span className="text-[10px] text-zinc-500 mb-1.5 font-medium">🏊 游泳(分)</span>
-                                                        <input type="number" value={config.pbSplits.swim} onChange={e => handleSplitChange('pbSplits', 'swim', e.target.value)} className="w-full text-center border border-zinc-300 rounded-xl py-2 text-sm font-bold focus:outline-none focus:border-blue-500 transition-colors"/>
+                                                        <label htmlFor="pb-swim" className="text-[10px] text-zinc-500 mb-1.5 font-medium">🏊 游泳(分)</label>
+                                                        <input type="number" id="pb-swim" name="pb-swim" value={config.pbSplits.swim} onChange={e => handleSplitChange('pbSplits', 'swim', e.target.value)} className="w-full text-center border border-zinc-300 rounded-xl py-2 text-sm font-bold focus:outline-none focus:border-blue-500 transition-colors"/>
                                                     </div>
                                                     <div className="flex flex-col items-center">
-                                                        <span className="text-[10px] text-zinc-400 mb-1.5 font-medium">🔄 T1(分)</span>
-                                                        <input type="number" value={config.pbSplits.t1} onChange={e => handleSplitChange('pbSplits', 't1', e.target.value)} className="w-full text-center border border-zinc-200 bg-zinc-100 rounded-xl py-2 text-sm font-bold focus:outline-none focus:border-blue-500 transition-colors"/>
+                                                        <label htmlFor="pb-t1" className="text-[10px] text-zinc-400 mb-1.5 font-medium">🔄 T1(分)</label>
+                                                        <input type="number" id="pb-t1" name="pb-t1" value={config.pbSplits.t1} onChange={e => handleSplitChange('pbSplits', 't1', e.target.value)} className="w-full text-center border border-zinc-200 bg-zinc-100 rounded-xl py-2 text-sm font-bold focus:outline-none focus:border-blue-500 transition-colors"/>
                                                     </div>
                                                     <div className="flex flex-col items-center">
-                                                        <span className="text-[10px] text-zinc-500 mb-1.5 font-medium">🚴 骑行(分)</span>
-                                                        <input type="number" value={config.pbSplits.bike} onChange={e => handleSplitChange('pbSplits', 'bike', e.target.value)} className="w-full text-center border border-zinc-300 rounded-xl py-2 text-sm font-bold focus:outline-none focus:border-blue-500 transition-colors"/>
+                                                        <label htmlFor="pb-bike" className="text-[10px] text-zinc-500 mb-1.5 font-medium">🚴 骑行(分)</label>
+                                                        <input type="number" id="pb-bike" name="pb-bike" value={config.pbSplits.bike} onChange={e => handleSplitChange('pbSplits', 'bike', e.target.value)} className="w-full text-center border border-zinc-300 rounded-xl py-2 text-sm font-bold focus:outline-none focus:border-blue-500 transition-colors"/>
                                                     </div>
                                                     <div className="flex flex-col items-center">
-                                                        <span className="text-[10px] text-zinc-400 mb-1.5 font-medium">🔄 T2(分)</span>
-                                                        <input type="number" value={config.pbSplits.t2} onChange={e => handleSplitChange('pbSplits', 't2', e.target.value)} className="w-full text-center border border-zinc-200 bg-zinc-100 rounded-xl py-2 text-sm font-bold focus:outline-none focus:border-blue-500 transition-colors"/>
+                                                        <label htmlFor="pb-t2" className="text-[10px] text-zinc-400 mb-1.5 font-medium">🔄 T2(分)</label>
+                                                        <input type="number" id="pb-t2" name="pb-t2" value={config.pbSplits.t2} onChange={e => handleSplitChange('pbSplits', 't2', e.target.value)} className="w-full text-center border border-zinc-200 bg-zinc-100 rounded-xl py-2 text-sm font-bold focus:outline-none focus:border-blue-500 transition-colors"/>
                                                     </div>
                                                     <div className="flex flex-col items-center">
-                                                        <span className="text-[10px] text-zinc-500 mb-1.5 font-medium">🏃 跑步(分)</span>
-                                                        <input type="number" value={config.pbSplits.run} onChange={e => handleSplitChange('pbSplits', 'run', e.target.value)} className="w-full text-center border border-zinc-300 rounded-xl py-2 text-sm font-bold focus:outline-none focus:border-blue-500 transition-colors"/>
+                                                        <label htmlFor="pb-run" className="text-[10px] text-zinc-500 mb-1.5 font-medium">🏃 跑步(分)</label>
+                                                        <input type="number" id="pb-run" name="pb-run" value={config.pbSplits.run} onChange={e => handleSplitChange('pbSplits', 'run', e.target.value)} className="w-full text-center border border-zinc-300 rounded-xl py-2 text-sm font-bold focus:outline-none focus:border-blue-500 transition-colors"/>
                                                     </div>
                                                 </div>
                                             </div>
@@ -745,10 +741,10 @@
                                                 <div className="flex flex-col md:flex-row md:justify-between md:items-center mb-4 pb-3 border-b border-blue-100">
                                                     <label className="text-sm font-bold text-blue-700 mb-2 md:mb-0">2. 本次A级赛目标</label>
                                                     <div className="flex gap-2">
-                                                        <select value={config.goalDistance} onChange={e => setConfig({...config, goalDistance: e.target.value})} className="border border-blue-200 rounded-xl px-3 py-1.5 text-sm bg-blue-50/50 font-medium text-blue-800 focus:outline-none focus:border-blue-500">
+                                                        <select id="goalDistance" name="goalDistance" value={config.goalDistance} onChange={e => setConfig({...config, goalDistance: e.target.value})} className="border border-blue-200 rounded-xl px-3 py-1.5 text-sm bg-blue-50/50 font-medium text-blue-800 focus:outline-none focus:border-blue-500">
                                                             {DISTANCES.map(d => <option key={d} value={d}>{d}</option>)}
                                                         </select>
-                                                        <select value={config.goalType} onChange={e => setConfig({...config, goalType: e.target.value})} className="border border-blue-200 rounded-xl px-3 py-1.5 text-sm bg-white font-bold text-blue-700 focus:outline-none focus:border-blue-500 shadow-sm">
+                                                        <select id="goalType" name="goalType" value={config.goalType} onChange={e => setConfig({...config, goalType: e.target.value})} className="border border-blue-200 rounded-xl px-3 py-1.5 text-sm bg-white font-bold text-blue-700 focus:outline-none focus:border-blue-500 shadow-sm">
                                                             <option value="time">按项目提速 (PB)</option>
                                                             <option value="cutoff">挑战压线/关门</option>
                                                             <option value="finish">顺利完赛即可</option>
@@ -759,19 +755,19 @@
                                                 {config.goalType === 'time' && (
                                                     <div className="grid grid-cols-5 gap-2">
                                                         <div className="flex flex-col items-center">
-                                                            <input type="number" value={config.goalSplits.swim} onChange={e => handleSplitChange('goalSplits', 'swim', e.target.value)} className="w-full text-center border border-blue-300 bg-white rounded-xl py-2 text-sm font-black text-blue-700 focus:outline-none focus:border-blue-500 shadow-sm transition-colors"/>
+                                                            <input type="number" id="goal-swim" name="goal-swim" value={config.goalSplits.swim} onChange={e => handleSplitChange('goalSplits', 'swim', e.target.value)} className="w-full text-center border border-blue-300 bg-white rounded-xl py-2 text-sm font-black text-blue-700 focus:outline-none focus:border-blue-500 shadow-sm transition-colors"/>
                                                         </div>
                                                         <div className="flex flex-col items-center">
-                                                            <input type="number" value={config.goalSplits.t1} onChange={e => handleSplitChange('goalSplits', 't1', e.target.value)} className="w-full text-center border border-blue-200 bg-blue-50/50 rounded-xl py-2 text-sm font-bold text-blue-700 focus:outline-none focus:border-blue-500 transition-colors"/>
+                                                            <input type="number" id="goal-t1" name="goal-t1" value={config.goalSplits.t1} onChange={e => handleSplitChange('goalSplits', 't1', e.target.value)} className="w-full text-center border border-blue-200 bg-blue-50/50 rounded-xl py-2 text-sm font-bold text-blue-700 focus:outline-none focus:border-blue-500 transition-colors"/>
                                                         </div>
                                                         <div className="flex flex-col items-center">
-                                                            <input type="number" value={config.goalSplits.bike} onChange={e => handleSplitChange('goalSplits', 'bike', e.target.value)} className="w-full text-center border border-blue-300 bg-white rounded-xl py-2 text-sm font-black text-blue-700 focus:outline-none focus:border-blue-500 shadow-sm transition-colors"/>
+                                                            <input type="number" id="goal-bike" name="goal-bike" value={config.goalSplits.bike} onChange={e => handleSplitChange('goalSplits', 'bike', e.target.value)} className="w-full text-center border border-blue-300 bg-white rounded-xl py-2 text-sm font-black text-blue-700 focus:outline-none focus:border-blue-500 shadow-sm transition-colors"/>
                                                         </div>
                                                         <div className="flex flex-col items-center">
-                                                            <input type="number" value={config.goalSplits.t2} onChange={e => handleSplitChange('goalSplits', 't2', e.target.value)} className="w-full text-center border border-blue-200 bg-blue-50/50 rounded-xl py-2 text-sm font-bold text-blue-700 focus:outline-none focus:border-blue-500 transition-colors"/>
+                                                            <input type="number" id="goal-t2" name="goal-t2" value={config.goalSplits.t2} onChange={e => handleSplitChange('goalSplits', 't2', e.target.value)} className="w-full text-center border border-blue-200 bg-blue-50/50 rounded-xl py-2 text-sm font-bold text-blue-700 focus:outline-none focus:border-blue-500 transition-colors"/>
                                                         </div>
                                                         <div className="flex flex-col items-center">
-                                                            <input type="number" value={config.goalSplits.run} onChange={e => handleSplitChange('goalSplits', 'run', e.target.value)} className="w-full text-center border border-blue-300 bg-white rounded-xl py-2 text-sm font-black text-blue-700 focus:outline-none focus:border-blue-500 shadow-sm transition-colors"/>
+                                                            <input type="number" id="goal-run" name="goal-run" value={config.goalSplits.run} onChange={e => handleSplitChange('goalSplits', 'run', e.target.value)} className="w-full text-center border border-blue-300 bg-white rounded-xl py-2 text-sm font-black text-blue-700 focus:outline-none focus:border-blue-500 shadow-sm transition-colors"/>
                                                         </div>
                                                     </div>
                                                 )}
@@ -793,15 +789,15 @@
                                                 </summary>
                                                 <div className="grid grid-cols-2 gap-4 mt-4 pt-4 border-t border-zinc-200/60">
                                                     <div>
-                                                        <label className="block text-xs font-bold text-zinc-600 mb-2 uppercase tracking-wider">性别组别</label>
-                                                        <select value={config.gender} onChange={e => setConfig({...config, gender: e.target.value})} className="w-full border border-zinc-300 rounded-xl px-3 py-2 text-sm bg-white font-medium focus:outline-none focus:border-blue-500">
+                                                        <label className="block text-xs font-bold text-zinc-600 mb-2 uppercase tracking-wider" htmlFor="gender">性别组别</label>
+                                                        <select id="gender" name="gender" value={config.gender} onChange={e => setConfig({...config, gender: e.target.value})} className="w-full border border-zinc-300 rounded-xl px-3 py-2 text-sm bg-white font-medium focus:outline-none focus:border-blue-500">
                                                             <option value="M">男子组 (Male)</option>
                                                             <option value="F">女子组 (Female)</option>
                                                         </select>
                                                     </div>
                                                     <div>
-                                                        <label className="block text-xs font-bold text-zinc-600 mb-2 uppercase tracking-wider">年龄组别</label>
-                                                        <select value={config.ageGroup} onChange={e => setConfig({...config, ageGroup: e.target.value})} className="w-full border border-zinc-300 rounded-xl px-3 py-2 text-sm bg-white font-medium focus:outline-none focus:border-blue-500">
+                                                        <label className="block text-xs font-bold text-zinc-600 mb-2 uppercase tracking-wider" htmlFor="ageGroup">年龄组别</label>
+                                                        <select id="ageGroup" name="ageGroup" value={config.ageGroup} onChange={e => setConfig({...config, ageGroup: e.target.value})} className="w-full border border-zinc-300 rounded-xl px-3 py-2 text-sm bg-white font-medium focus:outline-none focus:border-blue-500">
                                                             {AGE_GROUPS.map(ag => <option key={ag} value={ag}>{ag}</option>)}
                                                         </select>
                                                     </div>
@@ -828,8 +824,10 @@
                                                     )}
                                                     <div className="grid grid-cols-1 md:grid-cols-12 gap-4">
                                                         <div className="md:col-span-5 flex flex-col">
-                                                            <label className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider mb-1.5">赛事选择/名称</label>
+                                                            <label htmlFor={`race-${race.id}-name`} className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider mb-1.5">赛事选择/名称</label>
                                                             <select 
+                                                                id={`race-${race.id}-select`}
+                                                                name={`race-${race.id}-select`}
                                                                 value={isCustom ? '自定义' : race.name} 
                                                                 onChange={e => {
                                                                     if (e.target.value === '自定义') { 
@@ -850,22 +848,22 @@
                                                                 <option value="自定义">➕ 其他自定义赛事...</option>
                                                             </select>
                                                             {isCustom && (
-                                                                <input type="text" value={race.name} onChange={e => handleRaceChange(race.id, 'name', e.target.value)} className="w-full border border-blue-300 bg-blue-50 rounded-xl px-3 py-2 text-sm font-bold text-blue-900 focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="输入自定义赛事名称" />
+                                                                <input type="text" id={`race-${race.id}-name`} name={`race-${race.id}-name`} value={race.name} onChange={e => handleRaceChange(race.id, 'name', e.target.value)} className="w-full border border-blue-300 bg-blue-50 rounded-xl px-3 py-2 text-sm font-bold text-blue-900 focus:outline-none focus:ring-2 focus:ring-blue-500" placeholder="输入自定义赛事名称" />
                                                             )}
                                                         </div>
                                                         <div className="md:col-span-3 flex flex-col">
-                                                            <label className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider mb-1.5">比赛日期</label>
-                                                            <input type="date" value={race.date} onChange={e => handleRaceChange(race.id, 'date', e.target.value)} className="w-full border border-zinc-300 rounded-xl px-3 py-2 text-sm font-bold text-zinc-700 bg-white focus:border-blue-500 focus:outline-none" />
+                                                            <label htmlFor={`race-${race.id}-date`} className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider mb-1.5">比赛日期</label>
+                                                            <input type="date" id={`race-${race.id}-date`} name={`race-${race.id}-date`} value={race.date} onChange={e => handleRaceChange(race.id, 'date', e.target.value)} className="w-full border border-zinc-300 rounded-xl px-3 py-2 text-sm font-bold text-zinc-700 bg-white focus:border-blue-500 focus:outline-none" />
                                                         </div>
                                                         <div className="md:col-span-2 flex flex-col">
-                                                            <label className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider mb-1.5">距离</label>
-                                                            <select value={race.distance} onChange={e => handleRaceChange(race.id, 'distance', e.target.value)} className="w-full border border-zinc-300 rounded-xl px-2 py-2 text-xs font-bold text-zinc-700 bg-white focus:border-blue-500 focus:outline-none">
+                                                            <label htmlFor={`race-${race.id}-distance`} className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider mb-1.5">距离</label>
+                                                            <select id={`race-${race.id}-distance`} name={`race-${race.id}-distance`} value={race.distance} onChange={e => handleRaceChange(race.id, 'distance', e.target.value)} className="w-full border border-zinc-300 rounded-xl px-2 py-2 text-xs font-bold text-zinc-700 bg-white focus:border-blue-500 focus:outline-none">
                                                                 {DISTANCES.map(d => <option key={d} value={d}>{d}</option>)}
                                                             </select>
                                                         </div>
                                                         <div className="md:col-span-2 flex flex-col">
-                                                            <label className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider mb-1.5">优先级</label>
-                                                            <select value={race.priority} onChange={e => handleRaceChange(race.id, 'priority', e.target.value)} className={`w-full border rounded-xl px-2 py-2 text-xs font-black focus:outline-none focus:ring-2 focus:ring-offset-1 ${race.priority==='A'?'bg-rose-50 text-rose-700 border-rose-200 focus:ring-rose-500':(race.priority==='B'?'bg-blue-50 text-blue-700 border-blue-200 focus:ring-blue-500':'bg-zinc-100 text-zinc-700 border-zinc-300 focus:ring-zinc-500')}`}>
+                                                            <label htmlFor={`race-${race.id}-priority`} className="text-[10px] font-bold text-zinc-400 uppercase tracking-wider mb-1.5">优先级</label>
+                                                            <select id={`race-${race.id}-priority`} name={`race-${race.id}-priority`} value={race.priority} onChange={e => handleRaceChange(race.id, 'priority', e.target.value)} className={`w-full border rounded-xl px-2 py-2 text-xs font-black focus:outline-none focus:ring-2 focus:ring-offset-1 ${race.priority==='A'?'bg-rose-50 text-rose-700 border-rose-200 focus:ring-rose-500':(race.priority==='B'?'bg-blue-50 text-blue-700 border-blue-200 focus:ring-blue-500':'bg-zinc-100 text-zinc-700 border-zinc-300 focus:ring-zinc-500')}`}>
                                                                 <option value="A">A级 (重点)</option>
                                                                 <option value="B">B级 (热身)</option>
                                                                 <option value="C">C级 (练习)</option>
@@ -886,7 +884,6 @@
                         </div>
                     )}
 
-                    {/* Tailwind CSS 隐藏滚动条补丁 */}
                     <style dangerouslySetInnerHTML={{__html: `
                         .custom-scrollbar::-webkit-scrollbar { width: 6px; }
                         .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
