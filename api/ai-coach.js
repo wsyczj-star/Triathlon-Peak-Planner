@@ -1,3 +1,6 @@
+// 【特权指令】允许 Vercel 函数最长运行 60 秒（免费版上限），防止 AI 思考时间过长被强行掐断
+export const maxDuration = 60; 
+
 export default async function handler(req, res) {
     if (req.method !== 'POST') {
         return res.status(405).json({ error: 'Method not allowed' });
@@ -10,11 +13,8 @@ export default async function handler(req, res) {
     }
 
     try {
-        // 接收前端传来的 payload
         const promptPayload = req.body;
         
-        // 带着隐藏的 API Key 向 Google 发起真实的请求
-        // 注意：使用更稳定、速度极快的 gemini-2.5-flash 模型
         const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`;
         
         const response = await fetch(apiUrl, {
@@ -28,11 +28,9 @@ export default async function handler(req, res) {
         }
 
         const data = await response.json();
-        
-        // 将获取到的结果原封不动地返回给你的前端
         res.status(200).json(data);
     } catch (error) {
-        console.error(error);
+        console.error("后端捕获到的错误:", error);
         res.status(500).json({ error: error.message });
     }
 }
