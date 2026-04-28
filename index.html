@@ -247,7 +247,6 @@
                 const state = urlParams.get('state');
 
                 if (code) { 
-                    // 【安全修复】检查 CSRF State 是否匹配
                     const savedState = sessionStorage.getItem('strava_auth_state');
                     if (!savedState || state !== savedState) {
                         setAuthStatus('未连接');
@@ -396,7 +395,7 @@
                 setLoading(false);
             };
 
-            // --- 真 AI 生成引擎 (连接 Vercel 后端) ---
+            // --- 真 AI 生成引擎 ---
             const generateRealAIPlan = async () => {
                 if (authStatus !== '已连接') {
                     setErrorMsg("请先连接 Strava 获取真实训练数据，AI 才能精准评估！");
@@ -411,14 +410,15 @@
                 const nextRace = upcomingRaces.find(r => r.priority === 'A') || upcomingRaces[0];
                 const daysLeft = nextRace ? Math.ceil((new Date(nextRace.date) - today) / (1000 * 60 * 60 * 24)) : '未知';
 
-                const trendStr = weeklyTrends.map(t => `${t.week}: 实际完成 ${t.actual}小时`).join('; ');
-                const prompt = `你是一个专业的铁人三项教练。请根据以下运动员的数据，生成下周的动态训练计划。
+                const trendStr = weeklyTrends.map(t => `${t.week}: 实际完成 ${t.actual}小时`).join(' | ');
+                const prompt = `你是一个专业的铁人三项教练。请根据以下运动员的数据，生成本周/下周的动态训练计划。
                 
                 【运动员基础信息】
                 性别：${config.gender === 'M' ? '男' : '女'}
                 年龄组：${config.ageGroup}
-                近期各单项周均容量 (小时)：游泳 ${Math.round(activities.swimTime/60*10)/10}h, 骑行 ${Math.round(activities.bikeTime/60*10)/10}h, 跑步 ${Math.round(activities.runTime/60*10)/10}h
                 过去6周体能积累趋势 (运动时长)：${trendStr}
+                ⚠️ 极其重要提示："本周"的数据是不完整的（因为今天还在本周内）。请你【绝对忽略】"本周"的低数据，务必主要依据"上周"及之前的完整数据来评估体能趋势和疲劳度！绝对不要因为"本周"数据低就判定为训练中断而安排恢复计划！
+                本周截至目前已完成：游泳 ${Math.round(activities.swimTime/60*10)/10}h, 骑行 ${Math.round(activities.bikeTime/60*10)/10}h, 跑步 ${Math.round(activities.runTime/60*10)/10}h
                 
                 【目标赛事】
                 赛事名称：${nextRace?.name || '未定'}
@@ -426,12 +426,11 @@
                 距离比赛还有：${daysLeft} 天
                 
                 【要求】
-                分析该运动员近期的训练容量是否在合理攀升、是否疲劳过度。结合距比赛的天数，决定下周的训练重心（如：继续加量、减量恢复、强化专项等），并输出一周（周一到周日）的详细训练计划。
-                如果过去几周容量极速飙升，务必安排恢复；如果停滞，合理增加负荷。
+                分析该运动员过去几周（排除本周）的完整训练容量是否在合理攀升、是否疲劳过度。结合距比赛的天数，决定近期的训练重心（如：继续加量、减量恢复、强化专项等），并输出完整一周（周一到周日）的详细训练计划。
+                如果过去几周（不含本周）容量极速飙升，务必安排恢复；如果停滞，合理增加负荷。
                 
                 严格按照提供的 JSON Schema 返回数据。`;
 
-                // 【核心修改】将请求发往我们自己极其安全的 Vercel 后端，不再暴露 API Key
                 const apiUrl = '/api/ai-coach';
 
                 try {
@@ -482,7 +481,6 @@
                         }
                     }
                     
-                    // 【鲁棒性增强】无情剥离大模型偶尔抽风带上的 Markdown 标记
                     let jsonText = result.candidates[0].content.parts[0].text;
                     jsonText = jsonText.replace(/```json/g, '').replace(/```/g, '').trim();
                     const parsedData = JSON.parse(jsonText);
@@ -958,26 +956,30 @@
                                                 )}
                                             </div>
 
-                                            <details className="mt-4 text-sm group">
-                                                <summary className="text-zinc-500 cursor-pointer font-bold hover:text-zinc-800 transition-colors flex items-center gap-1">
-                                                    <IconSettings className="h-4 w-4"/> 基础资料设定 (性别/年龄组)
-                                                </summary>
-                                                <div className="grid grid-cols-2 gap-4 mt-4 pt-4 border-t border-zinc-200/60">
+                                            {/* 【彻底修改】废除了隐藏的 details 标签，直接将性别年龄组展示出来 */}
+                                            <div className="mt-6 pt-4 border-t border-zinc-200/60">
+                                                <div className="flex items-center gap-2 mb-3">
+                                                    <IconSettings className="h-4 w-4 text-zinc-400"/> 
+                                                    <h4 className="text-xs font-bold text-zinc-500 uppercase tracking-wider">基础资料设定 (AI 分析强相关)</h4>
+                                                </div>
+                                                <div className="grid grid-cols-2 gap-4 p-4 bg-white rounded-2xl border border-zinc-200 shadow-sm">
                                                     <div>
-                                                        <label className="block text-xs font-bold text-zinc-600 mb-2 uppercase tracking-wider" htmlFor="gender">性别组别</label>
-                                                        <select id="gender" name="gender" value={config.gender} onChange={e => setConfig({...config, gender: e.target.value})} className="w-full border border-zinc-300 rounded-xl px-3 py-2 text-sm bg-white font-medium focus:outline-none focus:border-blue-500">
+                                                        <label className="block text-[10px] font-bold text-zinc-400 mb-1.5 uppercase tracking-wider" htmlFor="gender">性别组别</label>
+                                                        <select id="gender" name="gender" value={config.gender} onChange={e => setConfig({...config, gender: e.target.value})} className="w-full border border-zinc-200 rounded-xl px-3 py-2 text-sm font-bold text-zinc-700 bg-zinc-50 focus:bg-white focus:outline-none focus:border-blue-500 transition-colors">
                                                             <option value="M">男子组 (Male)</option>
                                                             <option value="F">女子组 (Female)</option>
                                                         </select>
                                                     </div>
                                                     <div>
-                                                        <label className="block text-xs font-bold text-zinc-600 mb-2 uppercase tracking-wider" htmlFor="ageGroup">年龄组别</label>
-                                                        <select id="ageGroup" name="ageGroup" value={config.ageGroup} onChange={e => setConfig({...config, ageGroup: e.target.value})} className="w-full border border-zinc-300 rounded-xl px-3 py-2 text-sm bg-white font-medium focus:outline-none focus:border-blue-500">
+                                                        <label className="block text-[10px] font-bold text-zinc-400 mb-1.5 uppercase tracking-wider" htmlFor="ageGroup">年龄组别</label>
+                                                        <select id="ageGroup" name="ageGroup" value={config.ageGroup} onChange={e => setConfig({...config, ageGroup: e.target.value})} className="w-full border border-zinc-200 rounded-xl px-3 py-2 text-sm font-bold text-zinc-700 bg-zinc-50 focus:bg-white focus:outline-none focus:border-blue-500 transition-colors">
                                                             {AGE_GROUPS.map(ag => <option key={ag} value={ag}>{ag}</option>)}
                                                         </select>
                                                     </div>
                                                 </div>
-                                            </details>
+                                            </div>
+                                            {/* 彻底修改结束 */}
+
                                         </div>
                                     </section>
 
